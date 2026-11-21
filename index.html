@@ -3,43 +3,39 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Dompet Keluarga - Catatan Keuangan Keluarga</title>
+  <title>Dompet Keluarga</title>
   
-  <!-- PWA Meta Tags -->
+  <!-- PWA & Mobile Settings -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="theme-color" content="#FAF8F5">
-
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
+  <meta name="apple-mobile-web-app-title" content="Dompet Keluarga">
+  <meta name="theme-color" content="#1E7B5E">
   
-  <!-- Google Fonts: Plus Jakarta Sans -->
+  <!-- Fonts & Tailwind CSS -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Font Awesome Icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Firebase JS SDK (v10 Compat Mode for Mobile HTML) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 
   <script>
     tailwind.config = {
       theme: {
         extend: {
-          fontFamily: {
-            sans: ['Plus Jakarta Sans', 'sans-serif'],
-          },
           colors: {
-            brand: {
-              coral: '#E05A47',
-              coralLight: '#FDF2F0',
-              sage: '#1B7A56',
-              sageLight: '#EDF7F2',
-              amber: '#D97706',
-              amberLight: '#FEF3C7',
-              bg: '#FAF8F5',
-              card: '#FFFFFF',
-              dark: '#1E293B',
-            }
+            appBg: '#FAF8F5',
+            appExpense: '#E05A47',
+            appIncome: '#1E7B5E',
+            appSavings: '#D98A2B',
+            appCard: '#FFFFFF',
+            appText: '#2D3748',
+            appMuted: '#718096'
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
           }
         }
       }
@@ -47,577 +43,246 @@
   </script>
 
   <style>
+    /* Safe area inset support for mobile cutouts */
     body {
-      font-family: 'Plus Jakarta Sans', sans-serif;
       background-color: #FAF8F5;
-      color: #1E293B;
+      color: #2D3748;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
       -webkit-tap-highlight-color: transparent;
     }
     
-    /* Input size safeguard for iOS safari zoom */
+    /* Ensure inputs have >=16px font on mobile to prevent iOS auto-zoom */
     input, select, textarea {
       font-size: 16px !important;
     }
 
-    /* Custom Scrollbar */
+    /* Custom scrollbar */
     ::-webkit-scrollbar {
       width: 4px;
       height: 4px;
     }
     ::-webkit-scrollbar-thumb {
-      background: #CBD5E1;
-      border-radius: 99px;
+      background: #CBD5E0;
+      border-radius: 4px;
     }
 
-    .glass-card {
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(10px);
+    /* Keyframe Animations */
+    @keyframes pulseLive {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.3); opacity: 0.5; }
     }
-
-    .cal-day-cell {
-      min-height: 52px;
-      transition: all 0.15s ease;
-    }
-
-    .cal-range-mid {
-      background-color: rgba(224, 90, 71, 0.12) !important;
-      border-radius: 0 !important;
-    }
-    .cal-range-mid-sage {
-      background-color: rgba(27, 122, 86, 0.12) !important;
-      border-radius: 0 !important;
+    .animate-pulse-live {
+      animation: pulseLive 2s infinite ease-in-out;
     }
   </style>
 </head>
-<body class="antialiased text-slate-800 min-h-screen pb-12">
+<body class="min-h-screen flex flex-col justify-between select-none">
 
-  <div id="app" class="max-w-md mx-auto relative min-h-screen flex flex-col shadow-xl bg-[#FAF8F5]">
-    
-    <!-- TOP HEADER -->
-    <header class="sticky top-0 z-30 bg-[#FAF8F5]/90 backdrop-blur-md px-4 py-3.5 border-b border-slate-200/60 flex items-center justify-between">
-      <div class="flex items-center gap-2.5">
-        <div id="headerLogoBg" class="w-10 h-10 rounded-2xl bg-brand-coral text-white flex items-center justify-center shadow-md transition-colors duration-300">
-          <i id="headerLogoIcon" class="fa-solid fa-[#1B7A56] fa-house-chimney text-lg"></i>
+  <!-- TOP HEADER -->
+  <header class="bg-[#1E7B5E] text-white sticky top-0 z-30 shadow-md">
+    <div class="max-w-md mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center space-x-2.5">
+        <div class="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center text-xl shadow-inner">
+          🏡
         </div>
         <div>
-          <div class="flex items-center gap-2">
-            <h1 class="font-extrabold text-slate-900 text-lg leading-tight tracking-tight">Dompet Keluarga</h1>
-            <span id="cloudStatusDot" class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" title="Menyambungkan..."></span>
+          <div class="flex items-center space-x-2">
+            <h1 class="font-bold text-lg leading-tight tracking-wide">Dompet Keluarga</h1>
+            <span id="cloudStatusDot" class="w-2.5 h-2.5 rounded-full bg-yellow-400 inline-block" title="Menghubungkan ke Cloud..."></span>
           </div>
-          <p id="subHeaderTitle" class="text-xs font-bold text-brand-coral">Pengeluaran 💸</p>
+          <p id="pageSubTitle" class="text-xs text-emerald-100 font-medium">Pengeluaran</p>
         </div>
       </div>
 
-      <!-- Hamburger Menu Button -->
-      <button onclick="toggleDrawer(true)" class="w-10 h-10 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-700 shadow-sm active:scale-95 transition">
-        <i class="fa-solid fa-bars text-lg"></i>
+      <!-- Hamburger Button -->
+      <button id="btnOpenMenu" class="p-2 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 transition-all text-white">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 6h16M4 12h16M4 18h16"></path>
+        </svg>
       </button>
-    </header>
-
-    <!-- BANNER READ-ONLY / SYNC STATUS -->
-    <div id="syncBanner" class="hidden bg-amber-500 text-white text-xs px-4 py-2 font-medium flex items-center justify-between shadow-inner">
-      <span id="syncBannerText"><i class="fa-solid fa-eye mr-1.5"></i> Mode Pantau Aktif (Baca Saja)</span>
-      <button onclick="app.switchTab('anggota')" class="underline font-bold hover:opacity-90">Pengaturan</button>
     </div>
 
-    <!-- MAIN CONTENT AREA -->
-    <main class="flex-1 px-4 py-4 space-y-4">
+    <!-- MEMBER SELECTION BAR -->
+    <div class="bg-emerald-900/40 border-t border-emerald-600/30 px-4 py-2">
+      <div class="max-w-md mx-auto flex items-center space-x-2 overflow-x-auto no-scrollbar" id="memberBarList">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+  </header>
 
-      <!-- ========================================== -->
-      <!-- PAGE 1: PENGELUARAN & PAGE 2: PEMASUKAN -->
-      <!-- ========================================== -->
-      <section id="page-transactions" class="space-y-4">
-        
-        <!-- MEMBER SELECTION / FILTER BAR -->
-        <div class="flex items-center justify-between gap-2 overflow-x-auto pb-1 text-xs">
-          <span class="text-slate-400 font-bold tracking-wider uppercase text-[10px] shrink-0">Profil:</span>
-          <div id="memberPillList" class="flex items-center gap-1.5 shrink-0">
-            <!-- Member pills rendered dynamically -->
+  <!-- MAIN CONTAINER -->
+  <main class="max-w-md mx-auto w-full flex-1 px-4 py-4 space-y-4">
+
+    <!-- CALENDAR TRIGGER & PERIOD BAR -->
+    <div class="bg-white rounded-2xl p-3.5 shadow-sm border border-stone-200/80 flex flex-col space-y-2">
+      <div class="flex items-center justify-between cursor-pointer" id="btnToggleCalendar">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-8 h-8 rounded-lg bg-emerald-50 text-[#1E7B5E] flex items-center justify-center font-bold text-sm">
+            📅
           </div>
-          <button onclick="app.openAddMemberModal()" class="px-2.5 py-1 rounded-xl bg-teal-50 text-teal-700 font-bold border border-teal-200 hover:bg-teal-100 transition shrink-0">
-            + Tambah
-          </button>
-        </div>
-
-        <!-- CALENDAR TRIGGER & QUICK FILTER BAR -->
-        <div class="bg-white rounded-2xl p-3 border border-slate-200/80 shadow-sm space-y-2">
-          <div class="flex items-center justify-between gap-2">
-            
-            <!-- Left: Calendar Logo & Active Range -->
-            <button onclick="app.toggleCalendarCard()" class="flex items-center gap-2.5 text-left group flex-1">
-              <div id="calTriggerBadge" class="w-9 h-9 rounded-xl bg-brand-coralLight text-brand-coral flex items-center justify-center group-hover:scale-105 transition shadow-sm">
-                <i class="fa-solid fa-calendar-days text-base"></i>
-              </div>
-              <div>
-                <div class="flex items-center gap-1.5">
-                  <span id="activeFilterLabel" class="font-extrabold text-sm text-slate-800">1 Bulan Terakhir</span>
-                  <i class="fa-solid fa-chevron-down text-[10px] text-slate-400"></i>
-                </div>
-                <p id="activeFilterSub" class="text-[11px] text-slate-400">Ketuk untuk atur kalender / rentang</p>
-              </div>
-            </button>
-
-            <!-- Right Corner: Compact Summary Quick Selector -->
-            <div class="flex items-center bg-slate-100 p-0.5 rounded-xl text-[11px] font-bold border border-slate-200 shrink-0">
-              <button onclick="app.setQuickRange('7H')" id="qp-7H" class="px-2 py-1 rounded-lg transition text-slate-600">7H</button>
-              <button onclick="app.setQuickRange('1B')" id="qp-1B" class="px-2 py-1 rounded-lg transition bg-white text-slate-900 shadow-sm">1B</button>
-              <button onclick="app.setQuickRange('3B')" id="qp-3B" class="px-2 py-1 rounded-lg transition text-slate-600">3B</button>
-              <button onclick="app.setQuickRange('6B')" id="qp-6B" class="px-2 py-1 rounded-lg transition text-slate-600">6B</button>
-              <button onclick="app.setQuickRange('1T')" id="qp-1T" class="px-2 py-1 rounded-lg transition text-slate-600">1T</button>
-            </div>
-          </div>
-
-          <!-- EXPANDABLE INTERACTIVE CALENDAR CARD -->
-          <div id="calendarCard" class="hidden pt-3 border-t border-slate-100 space-y-3">
-            
-            <!-- Calendar Navigation Header -->
-            <div class="flex items-center justify-between">
-              <button onclick="app.changeCalMonth(-1)" class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-200">
-                <i class="fa-solid fa-chevron-left text-xs"></i>
-              </button>
-
-              <div class="text-center">
-                <span id="calMonthYearTitle" class="font-extrabold text-sm text-slate-800">November 2026</span>
-              </div>
-
-              <button onclick="app.changeCalMonth(1)" class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-200">
-                <i class="fa-solid fa-chevron-right text-xs"></i>
-              </button>
-            </div>
-
-            <!-- Days Header -->
-            <div class="grid grid-cols-7 text-center text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-              <span>Min</span><span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span>
-            </div>
-
-            <!-- Calendar Days Grid -->
-            <div id="calGrid" class="grid grid-cols-7 gap-1 text-center">
-              <!-- Rendered via JS -->
-            </div>
-
-            <!-- Calendar Footer Controls -->
-            <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
-              <span id="calSelectionSummary" class="text-slate-500 font-medium text-[11px]">Pilih 1-2 tanggal untuk rentang</span>
-              <div class="flex items-center gap-1.5">
-                <button onclick="app.selectToday()" class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 font-bold hover:bg-slate-200 text-[11px]">Hari Ini</button>
-                <button onclick="app.toggleCalendarCard(false)" class="px-2.5 py-1 rounded-lg bg-slate-800 text-white font-bold text-[11px]">Selesai</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- HERO CARD (TOTAL SPENDING / INCOME) -->
-        <div id="heroCardBg" class="bg-gradient-to-br from-brand-coral to-red-600 rounded-3xl p-5 text-white shadow-lg space-y-3 relative overflow-hidden transition-colors duration-300">
-          <div class="absolute -right-6 -bottom-6 opacity-15 pointer-events-none text-8xl">
-            <i id="heroCardWatermark" class="fa-solid fa-wallet"></i>
-          </div>
-
-          <div class="flex justify-between items-start">
-            <span id="heroCardLabel" class="text-xs font-bold tracking-widest uppercase opacity-85">TOTAL PENGELUARAN (1 BULAN)</span>
-            <span id="heroMemberTag" class="text-[11px] px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-sm font-semibold">Semua Anggota</span>
-          </div>
-
           <div>
-            <h2 id="heroTotalAmount" class="text-3xl font-extrabold tracking-tight">Rp 0</h2>
-          </div>
-
-          <div class="pt-2 border-t border-white/20 flex justify-between items-center text-xs opacity-90">
-            <span>Jumlah Catatan: <strong id="heroTrxCount">0 transaksi</strong></span>
-            <span>Rata-rata/hari: <strong id="heroDailyAvg">Rp 0</strong></span>
+            <div class="flex items-center space-x-2">
+              <span id="liveStatusBadge" class="hidden flex items-center space-x-1 text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse-live"></span>
+                <span>HARI INI REALTIME</span>
+              </span>
+            </div>
+            <p id="calendarActiveLabel" class="text-xs font-bold text-stone-700">Hari Ini • Loading...</p>
           </div>
         </div>
 
-        <!-- ACTION BUTTON -->
-        <button id="btnOpenAddTrx" onclick="app.openTrxModal()" class="w-full py-3.5 rounded-2xl bg-brand-coral text-white font-extrabold shadow-md hover:opacity-95 active:scale-[0.98] transition flex items-center justify-center gap-2 text-base">
-          <i class="fa-solid fa-circle-plus text-lg"></i>
-          <span id="btnOpenAddTrxText">Catat Pengeluaran Baru</span>
+        <div class="flex items-center space-x-2">
+          <button id="btnQuickToday" class="hidden text-xs bg-emerald-600 text-white font-semibold px-2.5 py-1 rounded-lg shadow-sm hover:bg-emerald-700 active:scale-95 transition">
+            Hari Ini
+          </button>
+          <svg id="calendarArrow" class="w-5 h-5 text-stone-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
+        </div>
+      </div>
+
+      <!-- EXPANDABLE CALENDAR CARD -->
+      <div id="calendarCard" class="hidden pt-3 border-t border-stone-100 space-y-3">
+        <!-- Header & Quick Range Selector -->
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center space-x-1">
+            <button id="btnPrevMonth" class="p-1.5 rounded-lg hover:bg-stone-100 text-stone-600 font-bold">&lt;</button>
+            <span id="calendarMonthYear" class="text-xs font-bold text-stone-800 min-w-[90px] text-center">Nov 2026</span>
+            <button id="btnNextMonth" class="p-1.5 rounded-lg hover:bg-stone-100 text-stone-600 font-bold">&gt;</button>
+          </div>
+
+          <!-- Mini Quick Select Buttons -->
+          <div class="flex items-center space-x-1 text-[11px]">
+            <button data-range="today" class="btn-range px-2 py-1 rounded-md bg-stone-100 hover:bg-emerald-100 text-stone-700 font-medium">Hr Ini</button>
+            <button data-range="7d" class="btn-range px-2 py-1 rounded-md bg-stone-100 hover:bg-emerald-100 text-stone-700 font-medium">7H</button>
+            <button data-range="1m" class="btn-range px-2 py-1 rounded-md bg-stone-100 hover:bg-emerald-100 text-stone-700 font-medium">1B</button>
+            <button data-range="3m" class="btn-range px-2 py-1 rounded-md bg-stone-100 hover:bg-emerald-100 text-stone-700 font-medium">3B</button>
+            <button data-range="6m" class="btn-range px-2 py-1 rounded-md bg-stone-100 hover:bg-emerald-100 text-stone-700 font-medium">6B</button>
+            <button data-range="1y" class="btn-range px-2 py-1 rounded-md bg-stone-100 hover:bg-emerald-100 text-stone-700 font-medium">1T</button>
+          </div>
+        </div>
+
+        <!-- Days of Week Header -->
+        <div class="grid grid-cols-7 text-center text-[11px] font-bold text-stone-400 uppercase">
+          <span>Min</span><span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span>
+        </div>
+
+        <!-- Calendar Grid Days -->
+        <div id="calendarDaysGrid" class="grid grid-cols-7 gap-1 text-center text-xs">
+          <!-- Rendered via JS -->
+        </div>
+
+        <p class="text-[10px] text-stone-400 text-center italic">* Ketuk 1x untuk tanggal tunggal, ketuk tanggal ke-2 untuk pilih rentang tanggal.</p>
+      </div>
+    </div>
+
+    <!-- DYNAMIC PAGE CONTENT CONTAINER -->
+    <div id="pageContainer">
+      <!-- Active Page Content rendered via JS -->
+    </div>
+  </main>
+
+  <!-- SIDE DRAWER MENU (RIGHT SLIDE-OVER) -->
+  <div id="drawerOverlay" class="fixed inset-0 bg-stone-900/60 backdrop-blur-sm z-40 hidden transition-opacity"></div>
+  <aside id="drawerMenu" class="fixed top-0 right-0 bottom-0 w-80 max-w-[85vw] bg-white z-50 transform translate-x-full transition-transform duration-300 ease-in-out flex flex-col shadow-2xl">
+    <!-- Drawer Header -->
+    <div class="bg-[#1E7B5E] text-white p-4 flex items-center justify-between">
+      <div class="flex items-center space-x-2">
+        <span class="text-xl">🏡</span>
+        <div>
+          <h2 class="font-bold text-base leading-tight">Navigasi Dompet</h2>
+          <p class="text-[11px] text-emerald-100" id="drawerWalletIDText">ID: DK-...</p>
+        </div>
+      </div>
+      <button id="btnCloseDrawer" class="p-1 rounded-lg hover:bg-white/20 text-white">
+        ✕
+      </button>
+    </div>
+
+    <!-- Menu Links -->
+    <div class="flex-1 overflow-y-auto p-3 space-y-1">
+      <button data-page="pengeluaran" class="nav-item w-full flex items-center space-x-3 px-3 py-3 rounded-xl hover:bg-stone-100 text-stone-700 font-semibold transition">
+        <span class="text-xl">💸</span>
+        <span>Pengeluaran</span>
+      </button>
+
+      <button data-page="pemasukan" class="nav-item w-full flex items-center space-x-3 px-3 py-3 rounded-xl hover:bg-stone-100 text-stone-700 font-semibold transition">
+        <span class="text-xl">💰</span>
+        <span>Pemasukan</span>
+      </button>
+
+      <button data-page="tabungan" class="nav-item w-full flex items-center space-x-3 px-3 py-3 rounded-xl hover:bg-stone-100 text-stone-700 font-semibold transition">
+        <span class="text-xl">🐖</span>
+        <span>Tabungan / Celengan</span>
+      </button>
+
+      <button data-page="ringkasan" class="nav-item w-full flex items-center space-x-3 px-3 py-3 rounded-xl hover:bg-stone-100 text-stone-700 font-semibold transition">
+        <span class="text-xl">📊</span>
+        <span>Ringkasan Keuangan</span>
+      </button>
+
+      <button data-page="belanja" class="nav-item w-full flex items-center space-x-3 px-3 py-3 rounded-xl hover:bg-stone-100 text-stone-700 font-semibold transition">
+        <span class="text-xl">🛒</span>
+        <span>Daftar Belanja</span>
+      </button>
+
+      <button data-page="anggota" class="nav-item w-full flex items-center space-x-3 px-3 py-3 rounded-xl hover:bg-stone-100 text-stone-700 font-semibold transition">
+        <span class="text-xl">👨‍👩‍👧‍👦</span>
+        <span>Anggota & Linked ID</span>
+      </button>
+
+      <hr class="my-3 border-stone-200">
+
+      <!-- Backup / Restore Tools -->
+      <div class="space-y-1 pt-1">
+        <p class="text-[11px] font-bold text-stone-400 uppercase tracking-wider px-3">Backup Data</p>
+        <button id="btnExportJSON" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-stone-600 hover:bg-stone-100 text-sm font-medium">
+          <span>📥</span>
+          <span>Unduh Backup (JSON)</span>
         </button>
-
-        <!-- CATEGORY BREAKDOWN -->
-        <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm space-y-3">
-          <h3 class="font-bold text-xs uppercase tracking-wider text-slate-400">Rincian Kategori</h3>
-          <div id="categoryBreakdownList" class="space-y-2 text-xs">
-            <p class="text-slate-400 text-center py-2">Belum ada data transaksi.</p>
-          </div>
-        </div>
-
-        <!-- TRANSACTIONS HISTORY GROUPED BY DATE -->
-        <div class="space-y-3">
-          <h3 class="font-bold text-xs uppercase tracking-wider text-slate-400 px-1">Riwayat Transaksi</h3>
-          <div id="transactionHistoryList" class="space-y-3">
-            <!-- Rendered dynamically -->
-          </div>
-        </div>
-
-      </section>
-
-      <!-- ========================================== -->
-      <!-- PAGE 3: TABUNGAN & IMPIAN -->
-      <!-- ========================================== -->
-      <section id="page-tabungan" class="hidden space-y-4">
-        <div class="bg-gradient-to-br from-amber-500 to-amber-700 rounded-3xl p-5 text-white shadow-lg space-y-2">
-          <span class="text-xs font-bold tracking-widest uppercase opacity-85">TOTAL TABUNGAN KELUARGA</span>
-          <h2 id="totalTabunganAmount" class="text-3xl font-extrabold tracking-tight">Rp 0</h2>
-          <p class="text-xs opacity-90">Semangat menabung untuk target masa depan keluarga!</p>
-        </div>
-
-        <button onclick="app.openAddSavingsModal()" class="w-full py-3 rounded-2xl bg-amber-600 text-white font-extrabold shadow-md hover:bg-amber-700 active:scale-[0.98] transition flex items-center justify-center gap-2">
-          <i class="fa-solid fa-plus-circle"></i> Buat Target Tabungan Baru
+        <button id="btnImportJSON" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-stone-600 hover:bg-stone-100 text-sm font-medium">
+          <span>📤</span>
+          <span>Pulihkan Backup (JSON)</span>
         </button>
-
-        <div id="savingsGoalList" class="space-y-3">
-          <!-- Savings cards rendered dynamically -->
-        </div>
-      </section>
-
-      <!-- ========================================== -->
-      <!-- PAGE 4: RINGKASAN KEUANGAN -->
-      <!-- ========================================== -->
-      <section id="page-ringkasan" class="hidden space-y-4">
-        <div class="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm space-y-4">
-          <h3 class="font-extrabold text-base text-slate-800">Kesehatan Keuangan Bulan Ini</h3>
-          
-          <div class="grid grid-cols-2 gap-3 text-center">
-            <div class="p-3 bg-emerald-50 border border-emerald-100 rounded-2xl">
-              <span class="text-xs font-bold text-emerald-600 uppercase">Total Pemasukan</span>
-              <p id="summaryIncome" class="text-lg font-extrabold text-emerald-700 mt-1">Rp 0</p>
-            </div>
-            <div class="p-3 bg-red-50 border border-red-100 rounded-2xl">
-              <span class="text-xs font-bold text-red-600 uppercase">Total Pengeluaran</span>
-              <p id="summaryExpense" class="text-lg font-extrabold text-red-700 mt-1">Rp 0</p>
-            </div>
-          </div>
-
-          <div class="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
-            <div class="flex justify-between text-xs font-bold">
-              <span>Sisa Kas / Arus Kas</span>
-              <span id="summaryNetValue" class="text-slate-800">Rp 0</span>
-            </div>
-            <div class="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden flex">
-              <div id="barIncome" class="bg-emerald-500 h-full" style="width: 50%"></div>
-              <div id="barExpense" class="bg-red-500 h-full" style="width: 50%"></div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ========================================== -->
-      <!-- PAGE 5: DAFTAR BELANJA -->
-      <!-- ========================================== -->
-      <section id="page-belanja" class="hidden space-y-4">
-        <div class="flex items-center justify-between">
-          <h3 class="font-extrabold text-lg text-slate-800">Daftar Belanja Dapur & Rumah</h3>
-          <button onclick="app.openAddShoppingModal()" class="px-3 py-1.5 rounded-xl bg-teal-600 text-white text-xs font-bold shadow-sm hover:bg-teal-700">
-            + Item Belanja
-          </button>
-        </div>
-
-        <p class="text-xs text-slate-500">Centang item yang sudah dibeli. Sistem akan otomatis menanyakan harga beli dan mencatatnya sebagai **Pengeluaran**.</p>
-
-        <div id="shoppingChecklist" class="space-y-2">
-          <!-- Shopping items rendered dynamically -->
-        </div>
-      </section>
-
-      <!-- ========================================== -->
-      <!-- PAGE 6: ANGGOTA & LINKED ID -->
-      <!-- ========================================== -->
-      <section id="page-anggota" class="hidden space-y-4">
-        
-        <!-- DEVICE ID & SYNC LINKING CARD -->
-        <div class="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm space-y-4">
-          <div class="flex items-center justify-between">
-            <h3 class="font-extrabold text-base text-slate-800">Identitas & Hubungkan HP (Linked ID)</h3>
-            <span class="px-2.5 py-0.5 rounded-full bg-teal-100 text-teal-800 text-[10px] font-bold">Firebase RTDB</span>
-          </div>
-
-          <!-- My ID Section -->
-          <div class="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-1.5">
-            <span class="text-xs text-slate-500 font-medium">ID Perangkat HP Ini:</span>
-            <div class="flex items-center justify-between font-mono font-bold text-slate-800 text-sm">
-              <span id="displayMyDeviceId">DK-XXXX-XXXX</span>
-              <button onclick="app.copyMyDeviceId()" class="text-xs text-teal-600 font-sans font-bold hover:underline">
-                <i class="fa-regular fa-copy"></i> Salin ID
-              </button>
-            </div>
-            <div class="flex items-center justify-between text-xs text-slate-500 pt-1 border-t border-slate-200/60">
-              <span>PIN 4 Digit: <strong id="displayMyPin" class="font-mono text-slate-700">1234</strong></span>
-              <button onclick="app.editMyPin()" class="text-teal-600 font-bold hover:underline">Ubah PIN</button>
-            </div>
-          </div>
-
-          <!-- Link Partner Form -->
-          <div id="linkedStatusContainer" class="space-y-3 pt-2">
-            <div class="text-xs font-bold text-slate-700">Hubungkan ke HP Suami / Istri:</div>
-            
-            <input type="text" id="inputPartnerId" placeholder="Masukkan ID Pasangan (cth: DK-8A2F-9011)" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs uppercase font-mono focus:outline-none focus:border-teal-500">
-            <input type="number" id="inputPartnerPin" placeholder="PIN 4 Digit Pasangan" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-mono focus:outline-none focus:border-teal-500">
-
-            <div class="grid grid-cols-2 gap-2">
-              <button onclick="app.connectPartner('pantau')" class="py-2.5 rounded-xl bg-amber-500 text-white text-xs font-bold hover:bg-amber-600 transition">
-                <i class="fa-solid fa-eye"></i> Mode Pantau
-              </button>
-              <button onclick="app.connectPartner('bareng')" class="py-2.5 rounded-xl bg-teal-600 text-white text-xs font-bold hover:bg-teal-700 transition">
-                <i class="fa-solid fa-handshake"></i> Mode Bareng
-              </button>
-            </div>
-            <p class="text-[11px] text-slate-400 italic leading-tight">* Mode Pantau = Hanya melihat. Mode Bareng = Catat bersama dua arah.</p>
-          </div>
-
-          <!-- Active Link Info -->
-          <div id="activeLinkBox" class="hidden p-3.5 bg-teal-50 border border-teal-200 rounded-2xl space-y-2">
-            <div class="flex items-center justify-between text-xs">
-              <span class="font-bold text-teal-900"><i class="fa-solid fa-link text-teal-600"></i> Terhubung ke HP Lain</span>
-              <span id="activeLinkModeBadge" class="px-2 py-0.5 rounded-full bg-teal-600 text-white text-[10px] font-bold">Mode Bareng</span>
-            </div>
-            <p class="text-xs text-teal-800 font-mono" id="activeLinkPartnerId">ID: DK-XXXX-XXXX</p>
-            <button onclick="app.disconnectPartner()" class="w-full py-2 rounded-xl bg-red-100 text-red-700 text-xs font-bold hover:bg-red-200 transition">
-              Putuskan Koneksi (Kembali ke HP Sendiri)
-            </button>
-          </div>
-
-        </div>
-
-        <!-- ANGGOTA KELUARGA LIST -->
-        <div class="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm space-y-3">
-          <div class="flex items-center justify-between">
-            <h3 class="font-extrabold text-base text-slate-800">Daftar Anggota Keluarga</h3>
-            <button onclick="app.openAddMemberModal()" class="px-3 py-1 rounded-xl bg-teal-50 text-teal-700 text-xs font-bold border border-teal-200">+ Tambah</button>
-          </div>
-
-          <div id="memberManageList" class="space-y-2 text-xs">
-            <!-- Rendered dynamically -->
-          </div>
-        </div>
-
-      </section>
-
-    </main>
-
-    <!-- SLIDE-OVER DRAWER MENU -->
-    <div id="drawerOverlay" onclick="toggleDrawer(false)" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-40 hidden transition-opacity"></div>
-    <aside id="drawerMenu" class="fixed top-0 right-0 bottom-0 w-72 bg-white z-50 shadow-2xl transform translate-x-full transition-transform duration-300 flex flex-col justify-between">
-      <div class="p-5 space-y-5">
-        <div class="flex items-center justify-between border-b border-slate-100 pb-4">
-          <div class="flex items-center gap-2">
-            <div class="w-8 h-8 rounded-xl bg-brand-coral text-white flex items-center justify-center font-bold">
-              <i class="fa-solid fa-wallet"></i>
-            </div>
-            <span class="font-extrabold text-slate-800">Dompet Keluarga</span>
-          </div>
-          <button onclick="toggleDrawer(false)" class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
-            <i class="fa-solid fa-xmark"></i>
-          </button>
-        </div>
-
-        <!-- Nav Items -->
-        <nav class="space-y-1.5 font-bold text-sm">
-          <button onclick="app.switchTab('pengeluaran')" class="w-full px-3.5 py-3 rounded-2xl flex items-center gap-3 text-left hover:bg-slate-100 text-slate-700">
-            <i class="fa-solid fa-money-bill-wave text-brand-coral w-5"></i> Pengeluaran
-          </button>
-          <button onclick="app.switchTab('pemasukan')" class="w-full px-3.5 py-3 rounded-2xl flex items-center gap-3 text-left hover:bg-slate-100 text-slate-700">
-            <i class="fa-solid fa-hand-holding-dollar text-brand-sage w-5"></i> Pemasukan
-          </button>
-          <button onclick="app.switchTab('tabungan')" class="w-full px-3.5 py-3 rounded-2xl flex items-center gap-3 text-left hover:bg-slate-100 text-slate-700">
-            <i class="fa-solid fa-piggy-bank text-amber-500 w-5"></i> Tabungan & Impian
-          </button>
-          <button onclick="app.switchTab('ringkasan')" class="w-full px-3.5 py-3 rounded-2xl flex items-center gap-3 text-left hover:bg-slate-100 text-slate-700">
-            <i class="fa-solid fa-chart-pie text-indigo-500 w-5"></i> Ringkasan Keuangan
-          </button>
-          <button onclick="app.switchTab('belanja')" class="w-full px-3.5 py-3 rounded-2xl flex items-center gap-3 text-left hover:bg-slate-100 text-slate-700">
-            <i class="fa-solid fa-basket-shopping text-teal-600 w-5"></i> Daftar Belanja Dapur
-          </button>
-          <button onclick="app.switchTab('anggota')" class="w-full px-3.5 py-3 rounded-2xl flex items-center gap-3 text-left hover:bg-slate-100 text-slate-700">
-            <i class="fa-solid fa-users text-sky-600 w-5"></i> Anggota & Linked ID
-          </button>
-        </nav>
-      </div>
-
-      <div class="p-5 border-t border-slate-100 space-y-3">
-        <button onclick="app.resetDataModal()" class="w-full py-2.5 rounded-xl bg-red-50 text-red-600 font-bold text-xs hover:bg-red-100 transition">
-          <i class="fa-solid fa-trash-can mr-1"></i> Reset Data HP Ini
-        </button>
-        <p class="text-[10px] text-slate-400 text-center">Dompet Keluarga v3.0 • Firebase Sync</p>
-      </div>
-    </aside>
-
-    <!-- ========================================== -->
-    <!-- MODALS -->
-    <!-- ========================================== -->
-
-    <!-- MODAL: CATAT TRANSAKSI (PENGELUARAN / PEMASUKAN) -->
-    <div id="modalTrx" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 hidden">
-      <div class="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 space-y-4 max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom duration-200">
-        <div class="flex justify-between items-center border-b border-slate-100 pb-3">
-          <h3 id="modalTrxTitle" class="font-extrabold text-base text-slate-800">Catat Transaksi</h3>
-          <button onclick="app.closeTrxModal()" class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
-            <i class="fa-solid fa-xmark"></i>
-          </button>
-        </div>
-
-        <form onsubmit="app.saveTransaction(event)" class="space-y-3.5">
-          <!-- Member Selector -->
-          <div>
-            <label class="block text-xs font-bold text-slate-600 mb-1">Dicatat Oleh</label>
-            <select id="trxMemberSelect" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold focus:outline-none focus:border-slate-800">
-              <!-- Options populated dynamically -->
-            </select>
-          </div>
-
-          <!-- Amount Input with Live Dot Formatting -->
-          <div>
-            <label class="block text-xs font-bold text-slate-600 mb-1">Nominal (Rp)</label>
-            <div class="relative">
-              <span class="absolute left-3 top-2.5 font-bold text-slate-400 text-sm">Rp</span>
-              <input type="text" id="trxAmountInput" inputmode="numeric" required placeholder="0" oninput="app.formatRupiahInput(this)" class="w-full pl-10 pr-3 py-2.5 rounded-xl border border-slate-200 font-extrabold text-lg text-slate-800 focus:outline-none focus:border-slate-800">
-            </div>
-          </div>
-
-          <!-- Category Selector -->
-          <div>
-            <label class="block text-xs font-bold text-slate-600 mb-1">Kategori</label>
-            <select id="trxCategorySelect" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold focus:outline-none focus:border-slate-800">
-              <!-- Populated dynamically based on type -->
-            </select>
-          </div>
-
-          <!-- Date Input -->
-          <div>
-            <label class="block text-xs font-bold text-slate-600 mb-1">Tanggal</label>
-            <input type="date" id="trxDateInput" required class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold focus:outline-none focus:border-slate-800">
-          </div>
-
-          <!-- Note Input -->
-          <div>
-            <label class="block text-xs font-bold text-slate-600 mb-1">Catatan / Keterangan (Opsional)</label>
-            <input type="text" id="trxNoteInput" placeholder="misal: Beli sayur pasar, bayar listrik" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-slate-800">
-          </div>
-
-          <!-- Photo Receipt Upload -->
-          <div>
-            <label class="block text-xs font-bold text-slate-600 mb-1">Foto Struk / Nota (Opsional)</label>
-            <input type="file" id="trxPhotoInput" accept="image/*" onchange="app.handlePhotoUpload(event)" class="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-slate-100 file:text-slate-700">
-            <input type="hidden" id="trxPhotoBase64">
-            <div id="photoPreviewContainer" class="hidden mt-2 relative w-20 h-20 rounded-xl overflow-hidden border border-slate-200">
-              <img id="photoPreviewImg" class="w-full h-full object-cover">
-              <button type="button" onclick="app.removeTrxPhoto()" class="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-600 text-white text-[10px] flex items-center justify-center">×</button>
-            </div>
-          </div>
-
-          <button type="submit" id="btnSubmitTrx" class="w-full py-3.5 rounded-2xl bg-slate-900 text-white font-extrabold shadow-md hover:bg-slate-800 transition">
-            Simpan Transaksi
-          </button>
-        </form>
+        <input type="file" id="fileImportInput" accept=".json" class="hidden">
       </div>
     </div>
 
-    <!-- MODAL: STREALIZED SHOPPING PRICE -->
-    <div id="modalShopPrice" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 hidden">
-      <div class="bg-white w-full max-w-xs rounded-3xl p-5 space-y-4">
-        <h3 class="font-extrabold text-base text-slate-800">Berapa Harga Beli?</h3>
-        <p id="shopPriceItemName" class="text-xs text-slate-500 font-bold">Item: Kangkung & Tahu</p>
-        
-        <div>
-          <label class="block text-xs font-bold text-slate-600 mb-1">Harga Realisasi (Rp)</label>
-          <input type="text" id="shopPriceInput" inputmode="numeric" placeholder="0" oninput="app.formatRupiahInput(this)" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 font-extrabold text-lg text-slate-800">
-        </div>
-
-        <div class="flex gap-2">
-          <button onclick="app.closeShopPriceModal(false)" class="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">Batal</button>
-          <button onclick="app.closeShopPriceModal(true)" class="flex-1 py-2.5 rounded-xl bg-teal-600 text-white text-xs font-bold">Simpan</button>
-        </div>
+    <!-- Drawer Footer -->
+    <div class="p-4 border-t border-stone-200 bg-stone-50 space-y-2">
+      <div class="flex items-center justify-between text-xs text-stone-500">
+        <span>Status Sync Cloud:</span>
+        <span id="drawerSyncText" class="font-bold text-emerald-600">Aktif</span>
       </div>
+      <button id="btnResetWallet" class="w-full py-2 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-xl text-xs transition border border-red-200">
+        ⚠️ Reset Data Dompet Ini
+      </button>
     </div>
+  </aside>
 
-    <!-- MODAL: ADD MEMBER -->
-    <div id="modalAddMember" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 hidden">
-      <div class="bg-white w-full max-w-xs rounded-3xl p-5 space-y-4">
-        <h3 class="font-extrabold text-base text-slate-800">Tambah Anggota Keluarga</h3>
-        <div>
-          <label class="block text-xs font-bold text-slate-600 mb-1">Nama Anggota</label>
-          <input type="text" id="newMemberName" placeholder="misal: Ayah, Ibu, Kakak" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold">
-        </div>
-        <div>
-          <label class="block text-xs font-bold text-slate-600 mb-1">Pilih Emoji Avatar</label>
-          <select id="newMemberAvatar" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-lg">
-            <option value="👤">👤 Saya / Umum</option>
-            <option value="👨">👨 Ayah / Suami</option>
-            <option value="👩">👩 Ibu / Istri</option>
-            <option value="👧">👧 Anak Perempuan</option>
-            <option value="👦">👦 Anak Laki-laki</option>
-            <option value="👵">👵 Nenek</option>
-            <option value="👴">👴 Kakek</option>
-          </select>
-        </div>
-        <div class="flex gap-2">
-          <button onclick="app.closeAddMemberModal()" class="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">Batal</button>
-          <button onclick="app.saveNewMember()" class="flex-1 py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold">Simpan</button>
-        </div>
-      </div>
+  <!-- MODAL CONTAINER (INTERNAL MODALS) -->
+  <div id="modalOverlay" class="fixed inset-0 bg-stone-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div id="modalContent" class="bg-white rounded-3xl max-w-sm w-full p-5 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+      <!-- Injected by Modal Helper -->
     </div>
-
-    <!-- MODAL: ADD SAVINGS GOAL -->
-    <div id="modalSavings" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 hidden">
-      <div class="bg-white w-full max-w-sm rounded-3xl p-5 space-y-4">
-        <h3 class="font-extrabold text-base text-slate-800">Target Tabungan Baru</h3>
-        <input type="text" id="savingsTitle" placeholder="misal: Qurban, Liburan, Dana Darurat" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold">
-        <div>
-          <label class="block text-xs font-bold text-slate-600 mb-1">Target Nominal (Rp)</label>
-          <input type="text" id="savingsTargetInput" inputmode="numeric" placeholder="0" oninput="app.formatRupiahInput(this)" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm font-bold">
-        </div>
-        <div class="flex gap-2">
-          <button onclick="document.getElementById('modalSavings').classList.add('hidden')" class="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">Batal</button>
-          <button onclick="app.saveNewSavingsGoal()" class="flex-1 py-2.5 rounded-xl bg-amber-600 text-white text-xs font-bold">Simpan</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- MODAL: DEPOSIT / WITHDRAW SAVINGS -->
-    <div id="modalSavingsAction" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 hidden">
-      <div class="bg-white w-full max-w-xs rounded-3xl p-5 space-y-4">
-        <h3 id="savingsActionTitle" class="font-extrabold text-base text-slate-800">Setor Tabungan</h3>
-        <div>
-          <label class="block text-xs font-bold text-slate-600 mb-1">Nominal (Rp)</label>
-          <input type="text" id="savingsActionAmount" inputmode="numeric" placeholder="0" oninput="app.formatRupiahInput(this)" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm font-bold">
-        </div>
-        <div class="flex gap-2">
-          <button onclick="document.getElementById('modalSavingsAction').classList.add('hidden')" class="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">Batal</button>
-          <button onclick="app.submitSavingsAction()" class="flex-1 py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold">Proses</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- MODAL: ADD SHOPPING ITEM -->
-    <div id="modalShopping" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 hidden">
-      <div class="bg-white w-full max-w-xs rounded-3xl p-5 space-y-4">
-        <h3 class="font-extrabold text-base text-slate-800">Tambah Item Belanja</h3>
-        <input type="text" id="shopItemName" placeholder="misal: Beras 5kg, Minyak 2L" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold">
-        <div class="flex gap-2">
-          <button onclick="document.getElementById('modalShopping').classList.add('hidden')" class="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">Batal</button>
-          <button onclick="app.saveShoppingItem()" class="flex-1 py-2.5 rounded-xl bg-teal-600 text-white text-xs font-bold">Tambah</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- MODAL: IMAGE PREVIEW -->
-    <div id="modalPhotoView" class="fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4 hidden" onclick="this.classList.add('hidden')">
-      <img id="modalPhotoViewImg" class="max-w-full max-h-[85vh] rounded-2xl object-contain shadow-2xl">
-    </div>
-
-    <!-- TOAST NOTIFICATION -->
-    <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-slate-900 text-white text-xs font-bold px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2 opacity-0 pointer-events-none transition-all duration-300">
-      <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400"></i>
-      <span id="toastMsg">Pesan Toast</span>
-    </div>
-
   </div>
 
-  <!-- FIREBASE & MAIN APP SCRIPT -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div id="toastContainer" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 pointer-events-none flex flex-col items-center space-y-2 w-full max-w-xs px-4"></div>
 
-    // USER'S EXACT FIREBASE CONFIG
+  <!-- RECEIPT PHOTO MODAL -->
+  <div id="photoViewerModal" class="fixed inset-0 bg-black/90 z-50 hidden flex flex-col items-center justify-center p-4">
+    <button id="btnClosePhotoViewer" class="absolute top-4 right-4 text-white text-3xl font-bold bg-white/20 w-10 h-10 rounded-full flex items-center justify-center">✕</button>
+    <img id="photoViewerImg" class="max-w-full max-h-[80vh] rounded-2xl object-contain shadow-2xl" src="" alt="Struk Pembelian">
+  </div>
+
+  <!-- JAVASCRIPT APPLICATION CODE -->
+  <script>
+    // ==========================================
+    // 1. FIREBASE INITIALIZATION EKSAT
+    // ==========================================
     const firebaseConfig = {
       apiKey: "AIzaSyBDVnTPzgzHYct2P1BHEi5lRxR4RaKfvPc",
       authDomain: "dompet-keluarga-bac95.firebaseapp.com",
@@ -629,1231 +294,1682 @@
       measurementId: "G-KSEF93VVE0"
     };
 
-    // Firebase Setup
-    const fbApp = initializeApp(firebaseConfig);
-    const db = getDatabase(fbApp);
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-    // EXPENSE & INCOME CATEGORIES WITH ICONS
-    const EXPENSE_CATEGORIES = [
-      { id: 'makanan', name: 'Makanan & Minuman', icon: 'fa-utensils', color: 'bg-orange-500' },
-      { id: 'belanja', name: 'Belanja Dapur & Rumah', icon: 'fa-basket-shopping', color: 'bg-teal-500' },
-      { id: 'tagihan', name: 'Tagihan & Listrik/Air', icon: 'fa-bolt', color: 'bg-amber-500' },
-      { id: 'transport', name: 'Bensin & Transport', icon: 'fa-gas-pump', color: 'bg-blue-500' },
-      { id: 'kesehatan', name: 'Kesehatan & Obat', icon: 'fa-heart-pulse', color: 'bg-rose-500' },
-      { id: 'pendidikan', name: 'Pendidikan & Sekolah', icon: 'fa-graduation-cap', color: 'bg-indigo-500' },
-      { id: 'hiburan', name: 'Hiburan & Jajanan', icon: 'fa-gamepad', color: 'bg-purple-500' },
-      { id: 'lainnya', name: 'Pengeluaran Lainnya', icon: 'fa-ellipsis', color: 'bg-slate-500' }
-    ];
-
-    const INCOME_CATEGORIES = [
-      { id: 'gaji', name: 'Gaji Bulanan', icon: 'fa-briefcase', color: 'bg-emerald-600' },
-      { id: 'usaha', name: 'Hasil Usaha / Dagang', icon: 'fa-store', color: 'bg-teal-600' },
-      { id: 'bonus', name: 'Bonus & Tunjangan', icon: 'fa-gift', color: 'bg-amber-600' },
-      { id: 'pemberian', name: 'Transfer / Transfer Keluarga', icon: 'fa-hand-holding-heart', color: 'bg-sky-600' },
-      { id: 'lainnya_in', name: 'Pemasukan Lainnya', icon: 'fa-coins', color: 'bg-slate-600' }
-    ];
-
-    // Helper: Generate Unique Local Device ID
-    function getOrCreateDeviceId() {
-      let id = localStorage.getItem('dk_my_device_id');
-      if (!id) {
-        const rand = Math.floor(1000 + Math.random() * 9000);
-        const rand2 = Math.floor(1000 + Math.random() * 9000);
-        id = `DK-${rand}-${rand2}`;
-        localStorage.setItem('dk_my_device_id', id);
-      }
-      return id;
+    // ==========================================
+    // 2. HELPER UTILITIES & DATE FUNCTIONS
+    // ==========================================
+    // WAJIB: getLocalTodayStr menggunakan jam & tanggal lokal HP (UTC+7 / WIB)
+    function getLocalTodayStr() {
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
     }
 
-    function getOrCreatePin() {
-      let pin = localStorage.getItem('dk_my_pin');
-      if (!pin) {
-        pin = String(Math.floor(1000 + Math.random() * 9000));
-        localStorage.setItem('dk_my_pin', pin);
-      }
-      return pin;
+    function formatRupiah(amount) {
+      const val = parseInt(amount) || 0;
+      return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(val);
     }
 
-    // MAIN APPLICATION CLASS
-    class DompetKeluargaApp {
-      constructor() {
-        this.currentTab = 'pengeluaran'; // 'pengeluaran', 'pemasukan', 'tabungan', 'ringkasan', 'belanja', 'anggota'
-        this.myDeviceId = getOrCreateDeviceId();
-        this.myPin = getOrCreatePin();
-        
-        // Partner Link state
-        this.partnerId = localStorage.getItem('dk_partner_id') || null;
-        this.linkMode = localStorage.getItem('dk_link_mode') || null; // 'pantau' or 'bareng'
-        
-        // Active DB Node
-        this.activeDeviceId = (this.partnerId) ? this.partnerId : this.myDeviceId;
-        this.isReadOnly = (this.partnerId && this.linkMode === 'pantau');
+    function formatCompactRupiah(amount) {
+      const num = parseInt(amount) || 0;
+      if (num === 0) return '';
+      if (num >= 1000000000) return (num / 1000000000).toFixed(1).replace('.0', '') + 'M';
+      if (num >= 1000000) return (num / 1000000).toFixed(1).replace('.0', '') + 'jt';
+      if (num >= 1000) return (num / 1000).toFixed(0) + 'rb';
+      return num.toString();
+    }
 
-        // Application State Data (starts completely Rp 0 / Empty)
-        this.state = {
-          members: JSON.parse(localStorage.getItem('dk_members')) || [{ id: 'm1', name: 'Saya', avatar: '👤' }],
-          activeMemberId: 'ALL', // 'ALL' or member id
-          transactions: [],
-          savings: [],
-          shopping: []
+    function formatDateIndo(dateStr) {
+      if (!dateStr) return '';
+      const parts = dateStr.split('-');
+      if (parts.length !== 3) return dateStr;
+      const d = new Date(parts[0], parts[1] - 1, parts[2]);
+      const days = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agus', 'Sep', 'Okt', 'Nov', 'Des'];
+      return `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+    }
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      const bgClass = type === 'success' ? 'bg-emerald-600' : type === 'error' ? 'bg-red-600' : 'bg-stone-800';
+      toast.className = `${bgClass} text-white text-xs font-semibold px-4 py-2.5 rounded-full shadow-lg transition-all transform translate-y-4 opacity-0 pointer-events-auto flex items-center space-x-2`;
+      toast.innerHTML = `<span>${type === 'success' ? '✅' : type === 'error' ? '⚠️' : 'ℹ️'}</span><span>${message}</span>`;
+      container.appendChild(toast);
+      
+      setTimeout(() => {
+        toast.classList.remove('translate-y-4', 'opacity-0');
+      }, 50);
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    // ==========================================
+    // 3. FITUR KRUSIAL #1 — ANTI LOSS & MIGRATION SCANNER
+    // ==========================================
+    const PERMANENT_KEYS = {
+      DEVICE_ID: 'DK_PERMANENT_DEVICE_ID',
+      PIN: 'DK_PERMANENT_PIN',
+      LINKED: 'DK_PERMANENT_LINKED',
+      CACHE: 'DK_PERMANENT_CACHE'
+    };
+
+    function generateNewWalletID() {
+      const randStr = Math.random().toString(36).substring(2, 7).toUpperCase();
+      const timeStr = Date.now().toString(36).substring(4).toUpperCase();
+      return `DK-${randStr}${timeStr}`;
+    }
+
+    // AUTO-SCANNER MIGRASI SAAT Halaman Pertama Ditampil
+    function autoScanAndMigrateLocalStorage() {
+      let existingID = localStorage.getItem(PERMANENT_KEYS.DEVICE_ID);
+      
+      if (!existingID) {
+        console.log("Mulai memindai localStorage lama...");
+        let foundOldID = null;
+
+        // Scan seluruh key di window.localStorage
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          const val = localStorage.getItem(key);
+          
+          // Pattern matching DK-XXXX
+          const match = val && val.match(/DK-[A-Z0-9-]{4,}/i);
+          if (match) {
+            foundOldID = match[0].toUpperCase();
+            console.log("Menemukan ID perangkat lama:", foundOldID);
+            break;
+          }
+        }
+
+        if (foundOldID) {
+          existingID = foundOldID;
+        } else {
+          existingID = generateNewWalletID();
+        }
+        localStorage.setItem(PERMANENT_KEYS.DEVICE_ID, existingID);
+      }
+
+      // Pastikan ada PIN default "1234" jika belum ada
+      if (!localStorage.getItem(PERMANENT_KEYS.PIN)) {
+        localStorage.setItem(PERMANENT_KEYS.PIN, '1234');
+      }
+
+      return existingID;
+    }
+
+    // ==========================================
+    // 4. GLOBAL STATE APPLICATION
+    // ==========================================
+    const walletId = autoScanAndMigrateLocalStorage();
+    let currentAppTodayDate = getLocalTodayStr(); // Local date tracker
+
+    let appState = {
+      activePage: 'pengeluaran', // pengeluaran, pemasukan, tabungan, ringkasan, belanja, anggota
+      activeMemberId: 'all', // 'all' or member ID
+      filterMode: 'today', // today, single, range, 7d, 1m, 3m, 6m, 1y
+      selectedStartDate: currentAppTodayDate,
+      selectedEndDate: currentAppTodayDate,
+      calendarMonth: new Date().getMonth(),
+      calendarYear: new Date().getFullYear(),
+      
+      // Data Murni dari Rp 0
+      members: [
+        { id: 'saya', name: 'Saya', emoji: '👤' }
+      ],
+      transactions: [], // {id, type:'expense'|'income', amount, category, memberId, date, note, photo}
+      savings: [],      // {id, title, target, current, history:[{date, amount, type:'deposit'|'withdraw'}]}
+      shopping: []      // {id, text, done, price, date}
+    };
+
+    let isCloudInitialized = false;
+    let firebaseDbRef = null;
+
+    // Load initial data from permanent cache if available
+    try {
+      const cached = localStorage.getItem(PERMANENT_KEYS.CACHE);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed.transactions) appState.transactions = parsed.transactions;
+        if (parsed.members) appState.members = parsed.members;
+        if (parsed.savings) appState.savings = parsed.savings;
+        if (parsed.shopping) appState.shopping = parsed.shopping;
+      }
+    } catch(e) { console.error(e); }
+
+    // ==========================================
+    // 5. FITUR KRUSIAL #3 — ZERO-OVERWRITE CLOUD SYNC
+    // ==========================================
+    function initFirebaseCloudSync() {
+      const statusDot = document.getElementById('cloudStatusDot');
+      const drawerSyncText = document.getElementById('drawerSyncText');
+
+      // Check if linked to another ID
+      const linkedID = localStorage.getItem(PERMANENT_KEYS.LINKED) || walletId;
+      document.getElementById('drawerWalletIDText').innerText = `ID: ${linkedID}`;
+
+      firebaseDbRef = db.ref(`dompet/${linkedID}`);
+
+      // Listener pembacaan awal
+      firebaseDbRef.on('value', (snapshot) => {
+        statusDot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block";
+        statusDot.title = "Terhubung ke Realtime Cloud";
+        drawerSyncText.innerText = "Terhubung ke Cloud";
+        drawerSyncText.className = "font-bold text-emerald-600";
+
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          if (data) {
+            appState.transactions = data.transactions || [];
+            appState.members = data.members || [{ id: 'saya', name: 'Saya', emoji: '👤' }];
+            appState.savings = data.savings || [];
+            appState.shopping = data.shopping || [];
+            saveLocalCache();
+            renderApp();
+          }
+        } else {
+          // ZERO-OVERWRITE: Cloud node belum ada. Jika kita punya data lokal, unggah data lokal ke cloud!
+          if (appState.transactions.length > 0 || appState.savings.length > 0 || appState.shopping.length > 0) {
+            pushToCloud();
+          }
+        }
+        isCloudInitialized = true;
+      }, (error) => {
+        console.error("Firebase Error:", error);
+        statusDot.className = "w-2.5 h-2.5 rounded-full bg-yellow-400 inline-block";
+        statusDot.title = "Mode Offline / Lokal";
+        drawerSyncText.innerText = "Mode Offline";
+        drawerSyncText.className = "font-bold text-yellow-600";
+        isCloudInitialized = true;
+      });
+    }
+
+    function saveLocalCache() {
+      try {
+        localStorage.setItem(PERMANENT_KEYS.CACHE, JSON.stringify({
+          transactions: appState.transactions,
+          members: appState.members,
+          savings: appState.savings,
+          shopping: appState.shopping
+        }));
+      } catch(e) { console.error(e); }
+    }
+
+    function pushToCloud() {
+      saveLocalCache();
+      if (firebaseDbRef && isCloudInitialized) {
+        firebaseDbRef.set({
+          transactions: appState.transactions,
+          members: appState.members,
+          savings: appState.savings,
+          shopping: appState.shopping,
+          updatedAt: firebase.database.ServerValue.TIMESTAMP
+        });
+      }
+    }
+
+    // ==========================================
+    // 6. FITUR KRUSIAL #2 — AUTO ROLLOVER MIDNIGHT REALTIME
+    // ==========================================
+    function checkMidnightRollover() {
+      const latestToday = getLocalTodayStr();
+      if (latestToday !== currentAppTodayDate) {
+        console.log("Hari baru terdeteksi:", latestToday);
+        currentAppTodayDate = latestToday;
+        
+        // Jika mode filter sedang di 'today', otomatis ganti tanggal aktif ke hari baru
+        if (appState.filterMode === 'today') {
+          appState.selectedStartDate = currentAppTodayDate;
+          appState.selectedEndDate = currentAppTodayDate;
+        }
+
+        appState.calendarMonth = new Date().getMonth();
+        appState.calendarYear = new Date().getFullYear();
+
+        showToast(`Hari baru terdeteksi (${formatDateIndo(currentAppTodayDate)})`, 'info');
+        renderApp();
+      }
+    }
+
+    // Interval 15 detik + visibilitychange
+    setInterval(checkMidnightRollover, 15000);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) checkMidnightRollover();
+    });
+    window.addEventListener('focus', checkMidnightRollover);
+
+    // ==========================================
+    // 7. COMPRESS FOTO STRUK AUTOMATIS (CANVAS MAX 600px, JPEG 0.6)
+    // ==========================================
+    function compressPhotoFile(file, callback) {
+      if (!file) return callback(null);
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const maxDim = 600;
+
+          if (width > height && width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else if (height > maxDim) {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Quality 0.6 JPEG
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+          callback(dataUrl);
         };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
 
-        // Calendar & Filter State
-        const today = new Date();
-        this.calYear = today.getFullYear();
-        this.calMonth = today.getMonth(); // 0-11
-        
-        // Date selection filter mode: 'quick' (7H, 1B, 3B, 6B, 1T) or 'custom'
-        this.filterMode = 'quick';
-        this.quickRangeKey = '1B'; // Default 1 Bulan
-        this.startDate = null; // YYYY-MM-DD
-        this.endDate = null;   // YYYY-MM-DD
+    // ==========================================
+    // 8. RENDER NAVIGATION & CALENDAR ENGINE
+    // ==========================================
+    function renderMemberBar() {
+      const container = document.getElementById('memberBarList');
+      let html = `
+        <button data-member="all" class="px-3 py-1 rounded-full text-xs font-bold transition flex items-center space-x-1 ${appState.activeMemberId === 'all' ? 'bg-white text-[#1E7B5E] shadow-sm' : 'text-emerald-100 hover:bg-emerald-800/40'}">
+          <span>👥</span><span>Semua</span>
+        </button>
+      `;
 
-        // Temp state for checking shopping item price
-        this.activeShoppingItemIndex = null;
-        // Firebase unsubscriber
-        this.dbUnsubscribe = null;
-
-        this.init();
-      }
-
-      init() {
-        this.updateUIIdentity();
-        this.initDateFilterPreset('1B');
-        this.listenFirebaseData();
-        this.renderAll();
-
-        // Safe viewport resize handling for canvas/inputs
-        window.addEventListener('resize', () => this.renderCalendarGrid());
-      }
-
-      // Update Device ID & Link Status UI
-      updateUIIdentity() {
-        document.getElementById('displayMyDeviceId').innerText = this.myDeviceId;
-        document.getElementById('displayMyPin').innerText = this.myPin;
-
-        const banner = document.getElementById('syncBanner');
-        const activeBox = document.getElementById('activeLinkBox');
-        const linkForm = document.getElementById('linkedStatusContainer');
-
-        if (this.partnerId) {
-          linkForm.classList.add('hidden');
-          activeBox.classList.remove('hidden');
-          document.getElementById('activeLinkPartnerId').innerText = `ID: ${this.partnerId}`;
-          document.getElementById('activeLinkModeBadge').innerText = (this.linkMode === 'pantau') ? 'Mode Pantau (Baca Saja)' : 'Mode Bareng (2 Arah)';
-          
-          if (this.linkMode === 'pantau') {
-            banner.classList.remove('hidden');
-            document.getElementById('syncBannerText').innerHTML = `<i class="fa-solid fa-eye mr-1.5"></i> Mode Pantau Aktif — Terhubung ke ${this.partnerId}`;
-          } else {
-            banner.classList.remove('hidden');
-            banner.className = 'bg-teal-600 text-white text-xs px-4 py-2 font-medium flex items-center justify-between shadow-inner';
-            document.getElementById('syncBannerText').innerHTML = `<i class="fa-solid fa-handshake mr-1.5"></i> Mode Bareng Aktif — Terhubung ke ${this.partnerId}`;
-          }
-        } else {
-          banner.classList.add('hidden');
-          linkForm.classList.remove('hidden');
-          activeBox.classList.add('hidden');
-        }
-      }
-
-      // Listen to Firebase Realtime Database
-      listenFirebaseData() {
-        const dot = document.getElementById('cloudStatusDot');
-        dot.className = "w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse";
-        
-        if (this.dbUnsubscribe) {
-          // Reset listener if switched node
-        }
-
-        const dataRef = ref(db, `dompet/${this.activeDeviceId}`);
-        onValue(dataRef, (snapshot) => {
-          dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm";
-          dot.title = "Terhubung ke Cloud";
-          
-          if (snapshot.exists()) {
-            const val = snapshot.val();
-            this.state.transactions = val.transactions || [];
-            this.state.savings = val.savings || [];
-            this.state.shopping = val.shopping || [];
-            if (val.members && val.members.length > 0) {
-              this.state.members = val.members;
-            }
-          } else {
-            // First time on cloud, push local state if not readonly
-            if (!this.isReadOnly) {
-              this.syncToFirebase();
-            }
-          }
-          this.saveLocalCache();
-          this.renderAll();
-        }, (error) => {
-          console.warn("Firebase offline or error:", error);
-          dot.className = "w-2.5 h-2.5 rounded-full bg-slate-400";
-          dot.title = "Mode Offline (Data Lokal)";
-          // Fallback to local storage cache
-          this.loadLocalCache();
-          this.renderAll();
-        });
-      }
-
-      // Sync state object to Firebase
-      syncToFirebase() {
-        if (this.isReadOnly) {
-          this.showToast("Tidak dapat mengubah data dalam Mode Pantau", true);
-          return;
-        }
-        const dataRef = ref(db, `dompet/${this.activeDeviceId}`);
-        set(dataRef, {
-          transactions: this.state.transactions || [],
-          savings: this.state.savings || [],
-          shopping: this.state.shopping || [],
-          members: this.state.members || [],
-          updatedAt: new Date().toISOString()
-        }).catch(err => console.error("Firebase sync error:", err));
-
-        this.saveLocalCache();
-      }
-
-      saveLocalCache() {
-        localStorage.setItem(`dk_cache_${this.activeDeviceId}`, JSON.stringify(this.state));
-        localStorage.setItem('dk_members', JSON.stringify(this.state.members));
-      }
-
-      loadLocalCache() {
-        const cached = localStorage.getItem(`dk_cache_${this.activeDeviceId}`);
-        if (cached) {
-          try {
-            this.state = JSON.parse(cached);
-          } catch(e){}
-        }
-      }
-
-      // ==========================================
-      // DATE FILTER & CALENDAR SYSTEM LOGIC
-      // ==========================================
-
-      initDateFilterPreset(key) {
-        this.filterMode = 'quick';
-        this.quickRangeKey = key;
-        const now = new Date();
-        const endDateStr = this.formatDateLocal(now);
-        let startDateObj = new Date(now);
-
-        if (key === '7H') {
-          startDateObj.setDate(now.getDate() - 6);
-        } else if (key === '1B') {
-          startDateObj.setMonth(now.getMonth() - 1);
-        } else if (key === '3B') {
-          startDateObj.setMonth(now.getMonth() - 3);
-        } else if (key === '6B') {
-          startDateObj.setMonth(now.getMonth() - 6);
-        } else if (key === '1T') {
-          startDateObj.setFullYear(now.getFullYear() - 1);
-        }
-
-        this.startDate = this.formatDateLocal(startDateObj);
-        this.endDate = endDateStr;
-        this.updateQuickPillUI();
-      }
-
-      setQuickRange(key) {
-        this.initDateFilterPreset(key);
-        this.renderAll();
-        this.showToast(`Filter: Rangkuman ${key}`);
-      }
-
-      updateQuickPillUI() {
-        ['7H', '1B', '3B', '6B', '1T'].forEach(k => {
-          const btn = document.getElementById(`qp-${k}`);
-          if (btn) {
-            if (this.filterMode === 'quick' && this.quickRangeKey === k) {
-              btn.className = "px-2 py-1 rounded-lg transition bg-white text-slate-900 shadow-sm font-extrabold";
-            } else {
-              btn.className = "px-2 py-1 rounded-lg transition text-slate-500 font-bold hover:text-slate-800";
-            }
-          }
-        });
-      }
-
-      formatDateLocal(dateObj) {
-        const y = dateObj.getFullYear();
-        const m = String(dateObj.getMonth() + 1).padStart(2, '0');
-        const d = String(dateObj.getDate()).padStart(2, '0');
-        return `${y}-${m}-${d}`;
-      }
-
-      toggleCalendarCard(forceState) {
-        const card = document.getElementById('calendarCard');
-        if (forceState !== undefined) {
-          if (forceState) card.classList.remove('hidden');
-          else card.classList.add('hidden');
-        } else {
-          card.classList.toggle('hidden');
-        }
-        if (!card.classList.contains('hidden')) {
-          this.renderCalendarGrid();
-        }
-      }
-
-      changeCalMonth(delta) {
-        this.calMonth += delta;
-        if (this.calMonth < 0) {
-          this.calMonth = 11;
-          this.calYear -= 1;
-        } else if (this.calMonth > 11) {
-          this.calMonth = 0;
-          this.calYear += 1;
-        }
-        this.renderCalendarGrid();
-      }
-
-      selectToday() {
-        const todayStr = this.formatDateLocal(new Date());
-        this.filterMode = 'single';
-        this.startDate = todayStr;
-        this.endDate = todayStr;
-        this.renderAll();
-        this.showToast("Filter diset ke Hari Ini");
-      }
-
-      // Handle Day Cell Click (Single Date & Range 7-19)
-      handleCalDayClick(dateStr) {
-        if (this.filterMode === 'quick' || (this.startDate && this.endDate && this.startDate !== this.endDate)) {
-          // Start a fresh selection
-          this.filterMode = 'single';
-          this.startDate = dateStr;
-          this.endDate = dateStr;
-        } else if (this.filterMode === 'single' && this.startDate) {
-          if (dateStr < this.startDate) {
-            this.endDate = this.startDate;
-            this.startDate = dateStr;
-            this.filterMode = 'range';
-          } else if (dateStr > this.startDate) {
-            this.endDate = dateStr;
-            this.filterMode = 'range';
-          } else {
-            // Re-clicked same single date
-            this.filterMode = 'single';
-          }
-        } else {
-          this.filterMode = 'single';
-          this.startDate = dateStr;
-          this.endDate = dateStr;
-        }
-
-        this.renderAll();
-      }
-
-      // Render the Calendar Grid with per-day totals!
-      renderCalendarGrid() {
-        const grid = document.getElementById('calGrid');
-        if (!grid) return;
-
-        const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
-        document.getElementById('calMonthYearTitle').innerText = `${monthNames[this.calMonth]} ${this.calYear}`;
-
-        grid.innerHTML = '';
-
-        const firstDay = new Date(this.calYear, this.calMonth, 1).getDay(); // 0 = Sun
-        const daysInMonth = new Date(this.calYear, this.calMonth + 1, 0).getDate();
-        const todayStr = this.formatDateLocal(new Date());
-
-        // Calculate total amount per day for current active tab type & member filter
-        const currentType = (this.currentTab === 'pemasukan') ? 'in' : 'out';
-        const dailyTotals = {};
-
-        this.state.transactions.forEach(t => {
-          if (t.type === currentType) {
-            if (this.state.activeMemberId === 'ALL' || t.memberId === this.state.activeMemberId) {
-              dailyTotals[t.date] = (dailyTotals[t.date] || 0) + Number(t.amount);
-            }
-          }
-        });
-
-        // Empty padding cells
-        for (let i = 0; i < firstDay; i++) {
-          const emptyCell = document.createElement('div');
-          emptyCell.className = "h-12 border border-transparent";
-          grid.appendChild(emptyCell);
-        }
-
-        // Render Day cells
-        for (let d = 1; d <= daysInMonth; d++) {
-          const mStr = String(this.calMonth + 1).padStart(2, '0');
-          const dStr = String(d).padStart(2, '0');
-          const dateStr = `${this.calYear}-${mStr}-${dStr}`;
-
-          const isToday = (dateStr === todayStr);
-          const totalVal = dailyTotals[dateStr] || 0;
-
-          // Check selection highlight state
-          let isSelectedStart = (this.startDate === dateStr);
-          let isSelectedEnd = (this.endDate === dateStr);
-          let isInRange = (this.startDate && this.endDate && dateStr > this.startDate && dateStr < this.endDate);
-
-          const cell = document.createElement('button');
-          cell.onclick = () => this.handleCalDayClick(dateStr);
-          
-          let cellBg = "bg-slate-50 border-slate-100 hover:bg-slate-100";
-          let textColor = "text-slate-800";
-          let badgeBg = "text-slate-400";
-
-          const accentColor = (this.currentTab === 'pemasukan') ? 'bg-emerald-600' : 'bg-brand-coral';
-          const midRangeClass = (this.currentTab === 'pemasukan') ? 'cal-range-mid-sage text-emerald-900 font-bold' : 'cal-range-mid text-red-900 font-bold';
-
-          if (isSelectedStart || isSelectedEnd) {
-            cellBg = `${accentColor} text-white shadow-md rounded-xl font-bold z-10`;
-            textColor = "text-white";
-            badgeBg = "text-white/90 font-bold";
-          } else if (isInRange) {
-            cellBg = `${midRangeClass}`;
-            textColor = (this.currentTab === 'pemasukan') ? 'text-emerald-900 font-bold' : 'text-red-900 font-bold';
-            badgeBg = "opacity-90";
-          } else if (isToday) {
-            cellBg = "bg-white border-2 border-brand-coral font-extrabold shadow-xs rounded-xl";
-          } else {
-            cellBg = "bg-slate-50/80 border border-slate-100 hover:bg-slate-100 rounded-xl";
-          }
-
-          let compactValText = '';
-          if (totalVal > 0) {
-            if (totalVal >= 1000000) {
-              compactValText = (totalVal / 1000000).toFixed(1).replace('.0', '') + 'jt';
-            } else if (totalVal >= 1000) {
-              compactValText = Math.round(totalVal / 1000) + 'rb';
-            } else {
-              compactValText = totalVal;
-            }
-          }
-
-          cell.className = `cal-day-cell p-1 flex flex-col justify-between items-center text-xs transition ${cellBg}`;
-          cell.innerHTML = `
-            <span class="text-[11px] font-bold ${textColor}">${d}</span>
-            <span class="text-[9px] font-extrabold truncate w-full leading-none ${badgeBg}">${compactValText ? compactValText : ''}</span>
-          `;
-
-          grid.appendChild(cell);
-        }
-
-        // Summary Text Footer in Calendar Card
-        const summaryText = document.getElementById('calSelectionSummary');
-        if (summaryText) {
-          if (this.filterMode === 'single') {
-            summaryText.innerText = `Tanggal: ${this.formatDisplayDate(this.startDate)} (Ketuk tanggal lain untuk buat rentang)`;
-          } else if (this.filterMode === 'range') {
-            const daysCount = this.getDaysDifference(this.startDate, this.endDate);
-            summaryText.innerText = `Rentang: ${this.formatDisplayDate(this.startDate)} – ${this.formatDisplayDate(this.endDate)} (${daysCount} hari)`;
-          } else {
-            summaryText.innerText = `Rangkuman Cepat: ${this.quickRangeKey}`;
-          }
-        }
-      }
-
-      getDaysDifference(d1Str, d2Str) {
-        if (!d1Str || !d2Str) return 1;
-        const t1 = new Date(d1Str).getTime();
-        const t2 = new Date(d2Str).getTime();
-        const diff = Math.abs(t2 - t1);
-        return Math.max(1, Math.ceil(diff / (1000 * 60 * 60 * 24)) + 1);
-      }
-
-      formatDisplayDate(dateStr) {
-        if (!dateStr) return '';
-        const parts = dateStr.split('-');
-        if (parts.length < 3) return dateStr;
-        const months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
-        return `${parseInt(parts[2])} ${months[parseInt(parts[1]) - 1]} ${parts[0]}`;
-      }
-
-      // ==========================================
-      // RENDER ALL UI SECTIONS
-      // ==========================================
-      renderAll() {
-        this.updateQuickPillUI();
-        this.renderCalendarGrid();
-        this.renderMemberPills();
-        this.renderHeroAndTransactions();
-        this.renderSavings();
-        this.renderFinancialSummary();
-        this.renderShoppingList();
-        this.renderMemberManageList();
-      }
-
-      // Render Member Pills in Header Filter
-      renderMemberPills() {
-        const container = document.getElementById('memberPillList');
-        if (!container) return;
-
-        let html = `
-          <button onclick="app.setActiveMember('ALL')" class="px-2.5 py-1 rounded-xl text-xs font-bold transition ${this.state.activeMemberId === 'ALL' ? 'bg-slate-900 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}">
-            👥 Semua
+      appState.members.forEach(m => {
+        const isActive = appState.activeMemberId === m.id;
+        html += `
+          <button data-member="${m.id}" class="px-3 py-1 rounded-full text-xs font-bold transition flex items-center space-x-1 ${isActive ? 'bg-white text-[#1E7B5E] shadow-sm' : 'text-emerald-100 hover:bg-emerald-800/40'}">
+            <span>${m.emoji}</span><span>${m.name}</span>
           </button>
         `;
+      });
 
-        this.state.members.forEach(m => {
-          const isActive = (this.state.activeMemberId === m.id);
-          html += `
-            <button onclick="app.setActiveMember('${m.id}')" class="px-2.5 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1 ${isActive ? 'bg-slate-900 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}">
-              <span>${m.avatar}</span> <span>${m.name}</span>
-            </button>
-          `;
+      html += `
+        <button id="btnAddMemberQuick" class="px-2.5 py-1 rounded-full text-xs font-bold bg-white/10 hover:bg-white/20 text-white transition flex items-center space-x-1 border border-white/20">
+          <span>+ Tambah</span>
+        </button>
+      `;
+
+      container.innerHTML = html;
+
+      // Event Listeners for Member Buttons
+      container.querySelectorAll('button[data-member]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          appState.activeMemberId = btn.getAttribute('data-member');
+          renderApp();
         });
+      });
 
-        container.innerHTML = html;
-      }
-
-      setActiveMember(id) {
-        this.state.activeMemberId = id;
-        this.renderAll();
-      }
-
-      // Filter transactions by active tab (income/expense), member, and date range
-      getFilteredTransactions() {
-        const isIncome = (this.currentTab === 'pemasukan');
-        const targetType = isIncome ? 'in' : 'out';
-
-        return this.state.transactions.filter(t => {
-          if (t.type !== targetType) return false;
-          if (this.state.activeMemberId !== 'ALL' && t.memberId !== this.state.activeMemberId) return false;
-
-          if (this.startDate && this.endDate) {
-            return t.date >= this.startDate && t.date <= this.endDate;
-          }
-          return true;
-        });
-      }
-
-      // Render Hero Card, Category Breakdown & Date-Grouped History
-      renderHeroAndTransactions() {
-        const isIncome = (this.currentTab === 'pemasukan');
-        const filtered = this.getFilteredTransactions();
-
-        // Calculate Totals
-        const totalVal = filtered.reduce((acc, curr) => acc + Number(curr.amount), 0);
-        const daySpan = this.getDaysDifference(this.startDate, this.endDate);
-        const dailyAvg = Math.round(totalVal / daySpan);
-
-        // Update Header & Badge Styles
-        const headerLogoBg = document.getElementById('headerLogoBg');
-        const subHeaderTitle = document.getElementById('subHeaderTitle');
-        const heroCardBg = document.getElementById('heroCardBg');
-        const calTriggerBadge = document.getElementById('calTriggerBadge');
-        const btnOpenAddTrx = document.getElementById('btnOpenAddTrx');
-
-        if (isIncome) {
-          headerLogoBg.className = "w-10 h-10 rounded-2xl bg-brand-sage text-white flex items-center justify-center shadow-md transition-colors duration-300";
-          subHeaderTitle.className = "text-xs font-bold text-brand-sage";
-          subHeaderTitle.innerText = "Pemasukan 💰";
-
-          heroCardBg.className = "bg-gradient-to-br from-brand-sage to-emerald-800 rounded-3xl p-5 text-white shadow-lg space-y-3 relative overflow-hidden transition-colors duration-300";
-          calTriggerBadge.className = "w-9 h-9 rounded-xl bg-brand-sageLight text-brand-sage flex items-center justify-center group-hover:scale-105 transition shadow-sm";
-
-          btnOpenAddTrx.className = "w-full py-3.5 rounded-2xl bg-brand-sage text-white font-extrabold shadow-md hover:opacity-95 active:scale-[0.98] transition flex items-center justify-center gap-2 text-base";
-          document.getElementById('btnOpenAddTrxText').innerText = "Catat Pemasukan Baru";
-        } else {
-          headerLogoBg.className = "w-10 h-10 rounded-2xl bg-brand-coral text-white flex items-center justify-center shadow-md transition-colors duration-300";
-          subHeaderTitle.className = "text-xs font-bold text-brand-coral";
-          subHeaderTitle.innerText = "Pengeluaran 💸";
-
-          heroCardBg.className = "bg-gradient-to-br from-brand-coral to-red-600 rounded-3xl p-5 text-white shadow-lg space-y-3 relative overflow-hidden transition-colors duration-300";
-          calTriggerBadge.className = "w-9 h-9 rounded-xl bg-brand-coralLight text-brand-coral flex items-center justify-center group-hover:scale-105 transition shadow-sm";
-
-          btnOpenAddTrx.className = "w-full py-3.5 rounded-2xl bg-brand-coral text-white font-extrabold shadow-md hover:opacity-95 active:scale-[0.98] transition flex items-center justify-center gap-2 text-base";
-          document.getElementById('btnOpenAddTrxText').innerText = "Catat Pengeluaran Baru";
-        }
-
-        // Active Filter Labels
-        const activeFilterLabel = document.getElementById('activeFilterLabel');
-        const heroCardLabel = document.getElementById('heroCardLabel');
-
-        let labelText = '';
-        if (this.filterMode === 'single') {
-          labelText = this.formatDisplayDate(this.startDate);
-        } else if (this.filterMode === 'range') {
-          labelText = `${this.formatDisplayDate(this.startDate)} – ${this.formatDisplayDate(this.endDate)}`;
-        } else {
-          const presetNames = { '7H': '7 Hari Terakhir', '1B': '1 Bulan Terakhir', '3B': '3 Bulan Terakhir', '6B': '6 Bulan Terakhir', '1T': '1 Tahun Terakhir' };
-          labelText = presetNames[this.quickRangeKey] || '1 Bulan Terakhir';
-        }
-
-        activeFilterLabel.innerText = labelText;
-        heroCardLabel.innerText = `TOTAL ${isIncome ? 'PEMASUKAN' : 'PENGELUARAN'} (${labelText.toUpperCase()})`;
-
-        // Hero Values
-        document.getElementById('heroTotalAmount').innerText = this.formatRupiah(totalVal);
-        document.getElementById('heroTrxCount').innerText = `${filtered.length} transaksi`;
-        document.getElementById('heroDailyAvg').innerText = this.formatRupiah(dailyAvg);
-
-        // Member Tag
-        const activeMemObj = this.state.members.find(m => m.id === this.state.activeMemberId);
-        document.getElementById('heroMemberTag').innerText = activeMemObj ? `${activeMemObj.avatar} ${activeMemObj.name}` : 'Semua Anggota';
-
-        // Render Category Breakdown
-        const categoryList = isIncome ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
-        const catMap = {};
-        filtered.forEach(t => {
-          catMap[t.category] = (catMap[t.category] || 0) + Number(t.amount);
-        });
-
-        const catContainer = document.getElementById('categoryBreakdownList');
-        if (Object.keys(catMap).length === 0) {
-          catContainer.innerHTML = `<p class="text-slate-400 text-center py-2 text-xs">Belum ada transaksi di periode ini.</p>`;
-        } else {
-          let catHtml = '';
-          Object.keys(catMap).sort((a,b) => catMap[b] - catMap[a]).forEach(catId => {
-            const catObj = categoryList.find(c => c.id === catId) || { name: catId, icon: 'fa-tag', color: 'bg-slate-500' };
-            const amt = catMap[catId];
-            const pct = Math.round((amt / (totalVal || 1)) * 100);
-
-            catHtml += `
-              <div class="space-y-1">
-                <div class="flex justify-between items-center text-xs">
-                  <div class="flex items-center gap-2">
-                    <div class="w-5 h-5 rounded-md ${catObj.color} text-white flex items-center justify-center text-[10px]">
-                      <i class="fa-solid ${catObj.icon}"></i>
-                    </div>
-                    <span class="font-bold text-slate-700">${catObj.name}</span>
-                  </div>
-                  <span class="font-extrabold text-slate-800">${this.formatRupiah(amt)} <span class="text-[10px] text-slate-400 font-normal">(${pct}%)</span></span>
-                </div>
-                <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                  <div class="${catObj.color} h-full" style="width: ${pct}%"></div>
-                </div>
-              </div>
-            `;
-          });
-          catContainer.innerHTML = catHtml;
-        }
-
-        // Render Transactions Grouped by Date
-        const historyContainer = document.getElementById('transactionHistoryList');
-        if (filtered.length === 0) {
-          historyContainer.innerHTML = `
-            <div class="bg-white rounded-2xl p-8 border border-slate-200/80 text-center space-y-2">
-              <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto text-xl">
-                <i class="fa-solid fa-receipt"></i>
-              </div>
-              <p class="font-bold text-slate-700 text-xs">Belum ada transaksi</p>
-              <p class="text-[11px] text-slate-400">Dompet aman dan hemat untuk periode ${labelText}.</p>
-            </div>
-          `;
-          return;
-        }
-
-        // Group by Date
-        const grouped = {};
-        filtered.sort((a,b) => new Date(b.date + 'T' + (b.time || '00:00')) - new Date(a.date + 'T' + (a.time || '00:00')));
-        filtered.forEach(t => {
-          if (!grouped[t.date]) grouped[t.date] = [];
-          grouped[t.date].push(t);
-        });
-
-        let historyHtml = '';
-        Object.keys(grouped).forEach(dateStr => {
-          const list = grouped[dateStr];
-          const groupTotal = list.reduce((a,c) => a + Number(c.amount), 0);
-
-          historyHtml += `
-            <div class="space-y-2">
-              <div class="flex justify-between items-center text-[11px] font-bold text-slate-400 px-1">
-                <span>${this.formatDisplayDate(dateStr)}</span>
-                <span>Total: ${this.formatRupiah(groupTotal)}</span>
-              </div>
-          `;
-
-          list.forEach(t => {
-            const catObj = categoryList.find(c => c.id === t.category) || { name: t.category, icon: 'fa-tag', color: 'bg-slate-500' };
-            const memObj = this.state.members.find(m => m.id === t.memberId) || { name: 'Umum', avatar: '👤' };
-
-            historyHtml += `
-              <div class="bg-white rounded-2xl p-3.5 border border-slate-200/80 shadow-xs flex items-center justify-between gap-3">
-                <div class="flex items-center gap-3 min-w-0">
-                  <div class="w-10 h-10 rounded-2xl ${catObj.color} text-white flex items-center justify-center text-sm shrink-0 shadow-xs">
-                    <i class="fa-solid ${catObj.icon}"></i>
-                  </div>
-                  <div class="min-w-0">
-                    <div class="flex items-center gap-1.5 flex-wrap">
-                      <span class="font-extrabold text-xs text-slate-800 truncate">${catObj.name}</span>
-                      <span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-bold shrink-0">${memObj.avatar} ${memObj.name}</span>
-                    </div>
-                    <p class="text-[11px] text-slate-500 truncate mt-0.5">${t.note || 'Tanpa catatan'}</p>
-                  </div>
-                </div>
-
-                <div class="text-right shrink-0">
-                  <span class="font-extrabold text-sm ${isIncome ? 'text-emerald-600' : 'text-slate-800'} block">
-                    ${isIncome ? '+' : '-'}${this.formatRupiah(t.amount)}
-                  </span>
-                  <div class="flex items-center justify-end gap-2 mt-1">
-                    ${t.photo ? `<button onclick="app.viewPhoto('${t.photo}')" class="text-teal-600 text-[11px] font-bold hover:underline"><i class="fa-regular fa-image"></i> Nota</button>` : ''}
-                    ${!this.isReadOnly ? `<button onclick="app.deleteTransaction('${t.id}')" class="text-slate-300 hover:text-red-500 transition text-xs"><i class="fa-regular fa-trash-can"></i></button>` : ''}
-                  </div>
-                </div>
-              </div>
-            `;
-          });
-
-          historyHtml += `</div>`;
-        });
-
-        historyContainer.innerHTML = historyHtml;
-      }
-
-      // ==========================================
-      // PAGE 3: TABUNGAN LOGIC
-      // ==========================================
-      renderSavings() {
-        const totalSaved = this.state.savings.reduce((a,c) => a + Number(c.currentAmount || 0), 0);
-        document.getElementById('totalTabunganAmount').innerText = this.formatRupiah(totalSaved);
-
-        const container = document.getElementById('savingsGoalList');
-        if (this.state.savings.length === 0) {
-          container.innerHTML = `<p class="text-slate-400 text-center py-6 text-xs bg-white rounded-2xl border border-slate-200">Belum ada target tabungan keluarga.</p>`;
-          return;
-        }
-
-        let html = '';
-        this.state.savings.forEach((s, idx) => {
-          const target = Number(s.targetAmount || 1);
-          const current = Number(s.currentAmount || 0);
-          const pct = Math.min(100, Math.round((current / target) * 100));
-
-          html += `
-            <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs space-y-3">
-              <div class="flex justify-between items-start">
-                <div>
-                  <h4 class="font-extrabold text-sm text-slate-800">${s.title}</h4>
-                  <p class="text-xs text-slate-400 mt-0.5">Target: ${this.formatRupiah(target)}</p>
-                </div>
-                <span class="px-2.5 py-1 rounded-xl bg-amber-100 text-amber-800 text-xs font-bold">${pct}%</span>
-              </div>
-
-              <div class="space-y-1">
-                <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
-                  <div class="bg-amber-500 h-full transition-all duration-300" style="width: ${pct}%"></div>
-                </div>
-                <div class="flex justify-between text-[11px] font-bold text-slate-500 pt-1">
-                  <span>Terkumpul: ${this.formatRupiah(current)}</span>
-                  <span>Sisa: ${this.formatRupiah(Math.max(0, target - current))}</span>
-                </div>
-              </div>
-
-              ${!this.isReadOnly ? `
-                <div class="flex gap-2 pt-1">
-                  <button onclick="app.openSavingsActionModal(${idx}, 'deposit')" class="flex-1 py-2 rounded-xl bg-amber-50 text-amber-700 font-bold text-xs hover:bg-amber-100 transition">+ Setor</button>
-                  <button onclick="app.openSavingsActionModal(${idx}, 'withdraw')" class="flex-1 py-2 rounded-xl bg-slate-100 text-slate-700 font-bold text-xs hover:bg-slate-200 transition">- Tarik</button>
-                  <button onclick="app.deleteSavingsGoal(${idx})" class="px-3 py-2 rounded-xl bg-red-50 text-red-600 text-xs font-bold"><i class="fa-regular fa-trash-can"></i></button>
-                </div>
-              ` : ''}
-            </div>
-          `;
-        });
-
-        container.innerHTML = html;
-      }
-
-      openAddSavingsModal() {
-        if (this.isReadOnly) return this.showToast("Mode Pantau: Tidak dapat menambah tabungan", true);
-        document.getElementById('savingsTitle').value = '';
-        document.getElementById('savingsTargetInput').value = '';
-        document.getElementById('modalSavings').classList.remove('hidden');
-      }
-
-      saveNewSavingsGoal() {
-        const title = document.getElementById('savingsTitle').value.trim();
-        const targetRaw = document.getElementById('savingsTargetInput').value.replace(/\./g, '');
-
-        if (!title || !targetRaw || Number(targetRaw) <= 0) {
-          return this.showToast("Mohon lengkapi judul dan target nominal", true);
-        }
-
-        this.state.savings.push({
-          id: 'sav_' + Date.now(),
-          title: title,
-          targetAmount: Number(targetRaw),
-          currentAmount: 0
-        });
-
-        this.syncToFirebase();
-        document.getElementById('modalSavings').classList.add('hidden');
-        this.showToast("Target tabungan berhasil dibuat");
-      }
-
-      openSavingsActionModal(index, mode) {
-        if (this.isReadOnly) return this.showToast("Mode Pantau Active", true);
-        this.activeSavingsIndex = index;
-        this.activeSavingsMode = mode;
-        document.getElementById('savingsActionTitle').innerText = (mode === 'deposit') ? 'Setor Tabungan' : 'Tarik Tabungan';
-        document.getElementById('savingsActionAmount').value = '';
-        document.getElementById('modalSavingsAction').classList.remove('hidden');
-      }
-
-      submitSavingsAction() {
-        const amountRaw = document.getElementById('savingsActionAmount').value.replace(/\./g, '');
-        const val = Number(amountRaw);
-        if (!val || val <= 0) return this.showToast("Nominal tidak valid", true);
-
-        const goal = this.state.savings[this.activeSavingsIndex];
-        if (this.activeSavingsMode === 'deposit') {
-          goal.currentAmount = (goal.currentAmount || 0) + val;
-        } else {
-          goal.currentAmount = Math.max(0, (goal.currentAmount || 0) - val);
-        }
-
-        this.syncToFirebase();
-        document.getElementById('modalSavingsAction').classList.add('hidden');
-        this.showToast("Tabungan diperbarui");
-      }
-
-      deleteSavingsGoal(index) {
-        if (this.isReadOnly) return;
-        this.state.savings.splice(index, 1);
-        this.syncToFirebase();
-        this.showToast("Target tabungan dihapus");
-      }
-
-      // ==========================================
-      // PAGE 4: RINGKASAN KEUANGAN LOGIC
-      // ==========================================
-      renderFinancialSummary() {
-        const filteredTransactions = this.state.transactions.filter(t => {
-          if (this.state.activeMemberId !== 'ALL' && t.memberId !== this.state.activeMemberId) return false;
-          if (this.startDate && this.endDate) return t.date >= this.startDate && t.date <= this.endDate;
-          return true;
-        });
-
-        const incomeTotal = filteredTransactions.filter(t => t.type === 'in').reduce((a,c) => a + Number(c.amount), 0);
-        const expenseTotal = filteredTransactions.filter(t => t.type === 'out').reduce((a,c) => a + Number(c.amount), 0);
-        const net = incomeTotal - expenseTotal;
-
-        document.getElementById('summaryIncome').innerText = this.formatRupiah(incomeTotal);
-        document.getElementById('summaryExpense').innerText = this.formatRupiah(expenseTotal);
-        document.getElementById('summaryNetValue').innerText = (net >= 0 ? '+' : '') + this.formatRupiah(net);
-
-        const totalSum = (incomeTotal + expenseTotal) || 1;
-        const incPct = Math.round((incomeTotal / totalSum) * 100);
-        const expPct = 100 - incPct;
-
-        document.getElementById('barIncome').style.width = `${incPct}%`;
-        document.getElementById('barExpense').style.width = `${expPct}%`;
-      }
-
-      // ==========================================
-      // PAGE 5: DAFTAR BELANJA LOGIC
-      // ==========================================
-      renderShoppingList() {
-        const container = document.getElementById('shoppingChecklist');
-        if (!container) return;
-
-        if (this.state.shopping.length === 0) {
-          container.innerHTML = `<p class="text-slate-400 text-center py-6 text-xs bg-white rounded-2xl border border-slate-200">Daftar belanja masih kosong.</p>`;
-          return;
-        }
-
-        let html = '';
-        this.state.shopping.forEach((item, idx) => {
-          html += `
-            <div class="bg-white rounded-2xl p-3.5 border border-slate-200/80 shadow-xs flex items-center justify-between gap-3">
-              <label class="flex items-center gap-3 cursor-pointer min-w-0 flex-1">
-                <input type="checkbox" ${item.checked ? 'checked' : ''} onchange="app.toggleShoppingItem(${idx})" class="w-5 h-5 rounded-lg text-teal-600 focus:ring-0">
-                <span class="text-xs font-bold ${item.checked ? 'line-through text-slate-400' : 'text-slate-800'} truncate">${item.name}</span>
-              </label>
-              ${item.checked && item.price ? `<span class="text-xs font-extrabold text-teal-600 shrink-0">${this.formatRupiah(item.price)}</span>` : ''}
-              ${!this.isReadOnly ? `<button onclick="app.deleteShoppingItem(${idx})" class="text-slate-300 hover:text-red-500 transition text-xs shrink-0"><i class="fa-regular fa-trash-can"></i></button>` : ''}
-            </div>
-          `;
-        });
-
-        container.innerHTML = html;
-      }
-
-      openAddShoppingModal() {
-        if (this.isReadOnly) return this.showToast("Mode Pantau Active", true);
-        document.getElementById('shopItemName').value = '';
-        document.getElementById('modalShopping').classList.remove('hidden');
-      }
-
-      saveShoppingItem() {
-        const name = document.getElementById('shopItemName').value.trim();
-        if (!name) return;
-
-        this.state.shopping.push({ name: name, checked: false });
-        this.syncToFirebase();
-        document.getElementById('modalShopping').classList.add('hidden');
-        this.showToast("Item belanja ditambahkan");
-      }
-
-      toggleShoppingItem(index) {
-        if (this.isReadOnly) return;
-        const item = this.state.shopping[index];
-        if (!item.checked) {
-          // Open price confirmation modal to auto-convert to Expense
-          this.activeShoppingItemIndex = index;
-          document.getElementById('shopPriceItemName').innerText = `Item: ${item.name}`;
-          document.getElementById('shopPriceInput').value = '';
-          document.getElementById('modalShopPrice').classList.remove('hidden');
-        } else {
-          item.checked = false;
-          item.price = null;
-          this.syncToFirebase();
-        }
-      }
-
-      closeShopPriceModal(shouldSave) {
-        document.getElementById('modalShopPrice').classList.add('hidden');
-        if (this.activeShoppingItemIndex === null) return;
-
-        const item = this.state.shopping[this.activeShoppingItemIndex];
-
-        if (shouldSave) {
-          const rawPrice = document.getElementById('shopPriceInput').value.replace(/\./g, '');
-          const price = Number(rawPrice) || 0;
-          item.checked = true;
-          item.price = price;
-
-          // Automatically record Expense under "Belanja Dapur"
-          if (price > 0) {
-            const todayStr = this.formatDateLocal(new Date());
-            this.state.transactions.push({
-              id: 'trx_' + Date.now(),
-              type: 'out',
-              memberId: this.state.members[0]?.id || 'm1',
-              amount: price,
-              category: 'belanja',
-              date: todayStr,
-              note: `[Otomatis Belanja] ${item.name}`
-            });
-          }
-          this.showToast("Dicatat ke Pengeluaran Dapur!");
-        }
-        this.syncToFirebase();
-      }
-
-      deleteShoppingItem(index) {
-        if (this.isReadOnly) return;
-        this.state.shopping.splice(index, 1);
-        this.syncToFirebase();
-      }
-
-      // ==========================================
-      // PAGE 6: ANGGOTA MANAGEMENT LOGIC
-      // ==========================================
-      renderMemberManageList() {
-        const container = document.getElementById('memberManageList');
-        if (!container) return;
-
-        let html = '';
-        this.state.members.forEach((m, idx) => {
-          html += `
-            <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200/80 flex items-center justify-between">
-              <div class="flex items-center gap-2.5">
-                <span class="text-xl">${m.avatar}</span>
-                <span class="font-bold text-slate-800">${m.name}</span>
-                ${idx === 0 ? `<span class="px-2 py-0.5 rounded-full bg-slate-200 text-[10px] font-bold text-slate-600">Utama</span>` : ''}
-              </div>
-              ${(idx > 0 && !this.isReadOnly) ? `<button onclick="app.deleteMember(${idx})" class="text-slate-300 hover:text-red-500 font-bold"><i class="fa-regular fa-trash-can"></i></button>` : ''}
-            </div>
-          `;
-        });
-
-        container.innerHTML = html;
-      }
-
-      openAddMemberModal() {
-        if (this.isReadOnly) return this.showToast("Mode Pantau Active", true);
-        document.getElementById('newMemberName').value = '';
-        document.getElementById('modalAddMember').classList.remove('hidden');
-      }
-
-      closeAddMemberModal() {
-        document.getElementById('modalAddMember').classList.add('hidden');
-      }
-
-      saveNewMember() {
-        const name = document.getElementById('newMemberName').value.trim();
-        const avatar = document.getElementById('newMemberAvatar').value;
-
-        if (!name) return this.showToast("Isi nama anggota", true);
-
-        this.state.members.push({
-          id: 'm_' + Date.now(),
-          name: name,
-          avatar: avatar
-        });
-
-        this.syncToFirebase();
-        this.closeAddMemberModal();
-        this.showToast(`Anggota ${name} ditambahkan`);
-      }
-
-      deleteMember(index) {
-        if (this.isReadOnly || index === 0) return;
-        this.state.members.splice(index, 1);
-        this.syncToFirebase();
-      }
-
-      // ==========================================
-      // LINKED ID / FIREBASE SYNC LOGIC
-      // ==========================================
-      copyMyDeviceId() {
-        const txt = `ID Dompet Keluarga Saya: ${this.myDeviceId} (PIN: ${this.myPin})`;
-        const temp = document.createElement('textarea');
-        temp.value = txt;
-        document.body.appendChild(temp);
-        temp.select();
-        document.execCommand('copy');
-        document.body.removeChild(temp);
-        this.showToast("ID & PIN tersalin ke clipboard!");
-      }
-
-      editMyPin() {
-        const newPin = prompt("Masukkan 4 Digit PIN Baru:", this.myPin);
-        if (newPin && newPin.trim().length === 4) {
-          this.myPin = newPin.trim();
-          localStorage.setItem('dk_my_pin', this.myPin);
-          this.updateUIIdentity();
-          this.showToast("PIN berhasil diperbarui");
-        }
-      }
-
-      connectPartner(mode) {
-        const partnerInput = document.getElementById('inputPartnerId').value.trim().toUpperCase();
-        const pinInput = document.getElementById('inputPartnerPin').value.trim();
-
-        if (!partnerInput || partnerInput.length < 5) return this.showToast("ID Pasangan tidak valid", true);
-
-        this.partnerId = partnerInput;
-        this.linkMode = mode;
-
-        localStorage.setItem('dk_partner_id', this.partnerId);
-        localStorage.setItem('dk_link_mode', this.linkMode);
-
-        this.activeDeviceId = this.partnerId;
-        this.isReadOnly = (mode === 'pantau');
-
-        this.updateUIIdentity();
-        this.listenFirebaseData();
-        this.showToast(`Terhubung ke ${this.partnerId}`);
-      }
-
-      disconnectPartner() {
-        this.partnerId = null;
-        this.linkMode = null;
-
-        localStorage.removeItem('dk_partner_id');
-        localStorage.removeItem('dk_link_mode');
-
-        this.activeDeviceId = this.myDeviceId;
-        this.isReadOnly = false;
-
-        this.updateUIIdentity();
-        this.listenFirebaseData();
-        this.showToast("Kembali ke ID HP Sendiri");
-      }
-
-      // Reset Local & Own Firebase Data
-      resetDataModal() {
-        if (confirm("Apakah Anda yakin ingin MENGHAPUS SEMUA DATA di HP ini dan mereset ke Rp 0?")) {
-          this.state = {
-            members: [{ id: 'm1', name: 'Saya', avatar: '👤' }],
-            activeMemberId: 'ALL',
-            transactions: [],
-            savings: [],
-            shopping: []
-          };
-          this.syncToFirebase();
-          toggleDrawer(false);
-          this.showToast("Data berhasil di-reset!");
-        }
-      }
-
-      // ==========================================
-      // TRANSACTIONS ADD / DELETE LOGIC
-      // ==========================================
-      openTrxModal() {
-        if (this.isReadOnly) return this.showToast("Mode Pantau: Tidak dapat menambah transaksi", true);
-
-        const isIncome = (this.currentTab === 'pemasukan');
-        document.getElementById('modalTrxTitle').innerText = isIncome ? 'Catat Pemasukan Baru' : 'Catat Pengeluaran Baru';
-
-        // Member Select Options
-        const memberSelect = document.getElementById('trxMemberSelect');
-        memberSelect.innerHTML = this.state.members.map(m => `<option value="${m.id}">${m.avatar} ${m.name}</option>`).join('');
-
-        // Category Select Options
-        const catSelect = document.getElementById('trxCategorySelect');
-        const list = isIncome ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
-        catSelect.innerHTML = list.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-
-        // Inputs
-        document.getElementById('trxAmountInput').value = '';
-        document.getElementById('trxDateInput').value = this.formatDateLocal(new Date());
-        document.getElementById('trxNoteInput').value = '';
-        this.removeTrxPhoto();
-
-        document.getElementById('modalTrx').classList.remove('hidden');
-      }
-
-      closeTrxModal() {
-        document.getElementById('modalTrx').classList.add('hidden');
-      }
-
-      handlePhotoUpload(e) {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const img = new Image();
-          img.onload = () => {
-            // Compress Image Canvas Max 700px JPEG quality 0.6
-            const canvas = document.createElement('canvas');
-            const maxDim = 700;
-            let width = img.width;
-            let height = img.height;
-
-            if (width > height && width > maxDim) {
-              height = Math.round((height * maxDim) / width);
-              width = maxDim;
-            } else if (height > maxDim) {
-              width = Math.round((width * maxDim) / height);
-              height = maxDim;
-            }
-
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, width, height);
-
-            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
-            document.getElementById('trxPhotoBase64').value = compressedBase64;
-            document.getElementById('photoPreviewImg').src = compressedBase64;
-            document.getElementById('photoPreviewContainer').classList.remove('hidden');
-          };
-          img.src = event.target.result;
-        };
-        reader.readAsDataURL(file);
-      }
-
-      removeTrxPhoto() {
-        document.getElementById('trxPhotoInput').value = '';
-        document.getElementById('trxPhotoBase64').value = '';
-        document.getElementById('photoPreviewContainer').classList.add('hidden');
-      }
-
-      saveTransaction(e) {
-        e.preventDefault();
-        if (this.isReadOnly) return;
-
-        const isIncome = (this.currentTab === 'pemasukan');
-        const memberId = document.getElementById('trxMemberSelect').value;
-        const amountRaw = document.getElementById('trxAmountInput').value.replace(/\./g, '');
-        const amount = Number(amountRaw);
-        const category = document.getElementById('trxCategorySelect').value;
-        const date = document.getElementById('trxDateInput').value;
-        const note = document.getElementById('trxNoteInput').value.trim();
-        const photo = document.getElementById('trxPhotoBase64').value;
-
-        if (!amount || amount <= 0) return this.showToast("Masukkan nominal yang valid", true);
-
-        const newTrx = {
-          id: 'trx_' + Date.now(),
-          type: isIncome ? 'in' : 'out',
-          memberId: memberId,
-          amount: amount,
-          category: category,
-          date: date,
-          time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-          note: note,
-          photo: photo || null
-        };
-
-        this.state.transactions.push(newTrx);
-        this.syncToFirebase();
-        this.closeTrxModal();
-        this.showToast("Transaksi berhasil disimpan!");
-      }
-
-      deleteTransaction(id) {
-        if (this.isReadOnly) return;
-        this.state.transactions = this.state.transactions.filter(t => t.id !== id);
-        this.syncToFirebase();
-        this.showToast("Transaksi dihapus");
-      }
-
-      viewPhoto(base64Str) {
-        document.getElementById('modalPhotoViewImg').src = base64Str;
-        document.getElementById('modalPhotoView').classList.remove('hidden');
-      }
-
-      // Tab Switcher
-      switchTab(tabName) {
-        this.currentTab = tabName;
-        toggleDrawer(false);
-
-        ['transactions', 'tabungan', 'ringkasan', 'belanja', 'anggota'].forEach(p => {
-          document.getElementById(`page-${p}`).classList.add('hidden');
-        });
-
-        if (tabName === 'pengeluaran' || tabName === 'pemasukan') {
-          document.getElementById('page-transactions').classList.remove('hidden');
-        } else {
-          document.getElementById(`page-${tabName}`).classList.remove('hidden');
-        }
-
-        this.renderAll();
-      }
-
-      // Formatting Utilities
-      formatRupiah(num) {
-        return 'Rp ' + (Number(num) || 0).toLocaleString('id-ID');
-      }
-
-      formatRupiahInput(input) {
-        let value = input.value.replace(/\D/g, '');
-        if (value) {
-          input.value = Number(value).toLocaleString('id-ID');
-        } else {
-          input.value = '';
-        }
-      }
-
-      showToast(msg, isError = false) {
-        const toast = document.getElementById('toast');
-        const icon = document.getElementById('toastIcon');
-        document.getElementById('toastMsg').innerText = msg;
-
-        if (isError) {
-          icon.className = "fa-solid fa-circle-exclamation text-red-400";
-        } else {
-          icon.className = "fa-solid fa-circle-check text-emerald-400";
-        }
-
-        toast.classList.remove('opacity-0', 'pointer-events-none');
-        setTimeout(() => {
-          toast.classList.add('opacity-0', 'pointer-events-none');
-        }, 2500);
-      }
+      document.getElementById('btnAddMemberQuick').addEventListener('click', promptAddMemberModal);
     }
 
-    // Global Drawer Control
-    window.toggleDrawer = function(show) {
-      const overlay = document.getElementById('drawerOverlay');
-      const menu = document.getElementById('drawerMenu');
-      if (show) {
-        overlay.classList.remove('hidden');
-        menu.classList.remove('translate-x-full');
-      } else {
-        overlay.classList.add('hidden');
-        menu.classList.add('translate-x-full');
-      }
-    };
+    function renderCalendar() {
+      const monthYearText = document.getElementById('calendarMonthYear');
+      const daysGrid = document.getElementById('calendarDaysGrid');
+      const activeLabel = document.getElementById('calendarActiveLabel');
+      const liveBadge = document.getElementById('liveStatusBadge');
+      const btnQuickToday = document.getElementById('btnQuickToday');
 
-    // Instantiate App on Load
-    window.onload = function() {
-      window.app = new DompetKeluargaApp();
-    };
+      const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+      monthYearText.innerText = `${monthNames[appState.calendarMonth]} ${appState.calendarYear}`;
+
+      // Live indicator text & quick today button visibility
+      if (appState.filterMode === 'today') {
+        liveBadge.classList.remove('hidden');
+        btnQuickToday.classList.add('hidden');
+        activeLabel.innerText = `Hari Ini • ${formatDateIndo(currentAppTodayDate)}`;
+      } else {
+        liveBadge.classList.add('hidden');
+        btnQuickToday.classList.remove('hidden');
+
+        if (appState.filterMode === 'single') {
+          activeLabel.innerText = formatDateIndo(appState.selectedStartDate);
+        } else if (appState.selectedStartDate && appState.selectedEndDate) {
+          activeLabel.innerText = `${formatDateIndo(appState.selectedStartDate)} - ${formatDateIndo(appState.selectedEndDate)}`;
+        }
+      }
+
+      // Calculate totals per date for calendar display
+      const totalsPerDate = {};
+      appState.transactions.forEach(t => {
+        if (appState.activeMemberId !== 'all' && t.memberId !== appState.activeMemberId) return;
+        
+        // Show expense totals on expense page, income totals on income page
+        if (appState.activePage === 'pemasukan' && t.type !== 'income') return;
+        if (appState.activePage !== 'pemasukan' && t.type !== 'expense') return;
+
+        totalsPerDate[t.date] = (totalsPerDate[t.date] || 0) + (parseInt(t.amount) || 0);
+      });
+
+      // Build Calendar Grid Days
+      const firstDay = new Date(appState.calendarYear, appState.calendarMonth, 1).getDay();
+      const daysInMonth = new Date(appState.calendarYear, appState.calendarMonth + 1, 0).getDate();
+
+      let gridHtml = '';
+
+      // Blank slots before first day
+      for (let i = 0; i < firstDay; i++) {
+        gridHtml += `<div class="p-2"></div>`;
+      }
+
+      // Days loop
+      for (let day = 1; day <= daysInMonth; day++) {
+        const mm = String(appState.calendarMonth + 1).padStart(2, '0');
+        const dd = String(day).padStart(2, '0');
+        const dateStr = `${appState.calendarYear}-${mm}-${dd}`;
+
+        const isToday = (dateStr === currentAppTodayDate);
+        const total = totalsPerDate[dateStr] || 0;
+        const compactAmt = formatCompactRupiah(total);
+
+        // Highlight Range Logic
+        let isSelected = false;
+        let isInRange = false;
+
+        if (appState.selectedStartDate && appState.selectedEndDate) {
+          if (dateStr >= appState.selectedStartDate && dateStr <= appState.selectedEndDate) {
+            isInRange = true;
+          }
+        }
+        if (dateStr === appState.selectedStartDate || dateStr === appState.selectedEndDate) {
+          isSelected = true;
+        }
+
+        let bgClass = 'bg-stone-50 text-stone-700 hover:bg-stone-100';
+        if (isSelected) {
+          bgClass = 'bg-[#1E7B5E] text-white font-bold shadow-md scale-105';
+        } else if (isInRange) {
+          bgClass = 'bg-emerald-100 text-emerald-900 font-semibold';
+        } else if (isToday) {
+          bgClass = 'border-2 border-[#1E7B5E] text-[#1E7B5E] font-bold bg-emerald-50/50';
+        }
+
+        gridHtml += `
+          <button data-date="${dateStr}" class="p-1.5 rounded-xl flex flex-col items-center justify-between min-h-[46px] transition ${bgClass}">
+            <span class="text-xs">${day}</span>
+            <span class="text-[9px] font-extrabold ${isSelected ? 'text-emerald-100' : 'text-emerald-700'} tracking-tight">${compactAmt}</span>
+          </button>
+        `;
+      }
+
+      daysGrid.innerHTML = gridHtml;
+
+      // Event Listeners for Date Click Interaction
+      daysGrid.querySelectorAll('button[data-date]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const clickedDate = btn.getAttribute('data-date');
+          
+          if (!appState.selectedStartDate || appState.filterMode === 'today' || (appState.selectedStartDate && appState.selectedEndDate && appState.filterMode === 'range')) {
+            // First click or reset to single
+            appState.filterMode = 'single';
+            appState.selectedStartDate = clickedDate;
+            appState.selectedEndDate = clickedDate;
+          } else if (appState.selectedStartDate && !appState.selectedEndDate) {
+            if (clickedDate >= appState.selectedStartDate) {
+              appState.filterMode = 'range';
+              appState.selectedEndDate = clickedDate;
+            } else {
+              appState.filterMode = 'single';
+              appState.selectedStartDate = clickedDate;
+              appState.selectedEndDate = clickedDate;
+            }
+          } else {
+            appState.filterMode = 'single';
+            appState.selectedStartDate = clickedDate;
+            appState.selectedEndDate = clickedDate;
+          }
+
+          renderApp();
+        });
+      });
+    }
+
+    // ==========================================
+    // 9. FILTER TRANSACTIONS UTILITY
+    // ==========================================
+    function getFilteredTransactions() {
+      return appState.transactions.filter(t => {
+        // Filter Member
+        if (appState.activeMemberId !== 'all' && t.memberId !== appState.activeMemberId) return false;
+
+        // Filter Date Range
+        if (appState.selectedStartDate && appState.selectedEndDate) {
+          return t.date >= appState.selectedStartDate && t.date <= appState.selectedEndDate;
+        }
+        return true;
+      });
+    }
+
+    // ==========================================
+    // 10. RENDER PAGES ENGINE
+    // ==========================================
+    function renderApp() {
+      renderMemberBar();
+      renderCalendar();
+
+      const container = document.getElementById('pageContainer');
+      const subTitle = document.getElementById('pageSubTitle');
+
+      if (appState.activePage === 'pengeluaran') {
+        subTitle.innerText = "Catatan Pengeluaran";
+        container.innerHTML = renderPagePengeluaran();
+      } else if (appState.activePage === 'pemasukan') {
+        subTitle.innerText = "Catatan Pemasukan";
+        container.innerHTML = renderPagePemasukan();
+      } else if (appState.activePage === 'tabungan') {
+        subTitle.innerText = "Tabungan & Celengan";
+        container.innerHTML = renderPageTabungan();
+      } else if (appState.activePage === 'ringkasan') {
+        subTitle.innerText = "Ringkasan Keuangan";
+        container.innerHTML = renderPageRingkasan();
+      } else if (appState.activePage === 'belanja') {
+        subTitle.innerText = "Daftar Belanja";
+        container.innerHTML = renderPageBelanja();
+      } else if (appState.activePage === 'anggota') {
+        subTitle.innerText = "Anggota & Linked ID";
+        container.innerHTML = renderPageAnggota();
+      }
+
+      bindPageEvents();
+    }
+
+    // --- PAGE 1: PENGELUARAN ---
+    function renderPagePengeluaran() {
+      const filtered = getFilteredTransactions().filter(t => t.type === 'expense');
+      const totalExpense = filtered.reduce((acc, curr) => acc + (parseInt(curr.amount) || 0), 0);
+
+      // Breakdown Category
+      const catTotals = {};
+      filtered.forEach(t => {
+        catTotals[t.category] = (catTotals[t.category] || 0) + parseInt(t.amount);
+      });
+
+      const titlePeriod = appState.filterMode === 'today' ? 'PENGELUARAN HARI INI' : 'TOTAL PENGELUARAN';
+
+      return `
+        <!-- HERO CARD PENGELUARAN -->
+        <div class="bg-gradient-to-br from-[#E05A47] to-rose-600 rounded-3xl p-5 text-white shadow-lg relative overflow-hidden">
+          <div class="absolute -right-4 -bottom-4 w-28 h-28 bg-white/10 rounded-full blur-xl pointer-events-none"></div>
+          <p class="text-xs font-bold uppercase tracking-wider text-rose-100">${titlePeriod}</p>
+          <h2 class="text-3xl font-extrabold mt-1">${formatRupiah(totalExpense)}</h2>
+          <div class="mt-3 flex items-center justify-between text-xs text-rose-100 pt-3 border-t border-white/20">
+            <span>${filtered.length} Transaksi</span>
+            <span>Rata-rata: ${filtered.length > 0 ? formatRupiah(totalExpense / filtered.length) : 'Rp 0'}</span>
+          </div>
+        </div>
+
+        <!-- BREAKDOWN CATEGORY BARS -->
+        ${Object.keys(catTotals).length > 0 ? `
+          <div class="bg-white rounded-2xl p-4 shadow-sm border border-stone-200/80 space-y-2.5">
+            <h3 class="text-xs font-bold text-stone-500 uppercase tracking-wider">Breakdown Kategori</h3>
+            <div class="space-y-2">
+              ${Object.entries(catTotals).map(([cat, amt]) => {
+                const pct = Math.round((amt / totalExpense) * 100) || 0;
+                return `
+                  <div>
+                    <div class="flex justify-between text-xs font-semibold text-stone-700 mb-1">
+                      <span>${cat}</span>
+                      <span>${formatRupiah(amt)} (${pct}%)</span>
+                    </div>
+                    <div class="w-full bg-stone-100 rounded-full h-2">
+                      <div class="bg-[#E05A47] h-2 rounded-full" style="width: ${pct}%"></div>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- ACTION BUTTON -->
+        <button id="btnOpenExpenseModal" class="w-full py-3.5 bg-[#E05A47] hover:bg-rose-600 text-white font-bold rounded-2xl shadow-md flex items-center justify-center space-x-2 active:scale-95 transition">
+          <span class="text-xl">+</span>
+          <span>Catat Pengeluaran Baru</span>
+        </button>
+
+        <!-- TRANSACTION HISTORY LIST -->
+        <div class="space-y-2.5">
+          <h3 class="text-xs font-bold text-stone-400 uppercase tracking-wider px-1">Riwayat Pengeluaran</h3>
+          ${filtered.length === 0 ? `
+            <div class="bg-white rounded-2xl p-8 text-center text-stone-400 text-sm border border-stone-200/60">
+              <span class="text-3xl block mb-2">💸</span>
+              Belum ada catatan pengeluaran pada periode ini.
+            </div>
+          ` : `
+            <div class="space-y-2">
+              ${filtered.map(t => {
+                const member = appState.members.find(m => m.id === t.memberId) || { name: 'Saya', emoji: '👤' };
+                return `
+                  <div class="bg-white rounded-2xl p-3.5 shadow-sm border border-stone-200/70 flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                      <div class="w-10 h-10 rounded-xl bg-rose-50 text-[#E05A47] flex items-center justify-center font-bold text-lg">
+                        ${t.category.split(' ')[0] || '💸'}
+                      </div>
+                      <div>
+                        <h4 class="font-bold text-stone-800 text-sm leading-tight">${t.note || t.category}</h4>
+                        <p class="text-[11px] text-stone-400 flex items-center space-x-2 mt-0.5">
+                          <span>${member.emoji} ${member.name}</span>
+                          <span>•</span>
+                          <span>${formatDateIndo(t.date)}</span>
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div class="text-right flex items-center space-x-2">
+                      <div>
+                        <p class="font-extrabold text-[#E05A47] text-sm">-${formatRupiah(t.amount)}</p>
+                        ${t.photo ? `<button data-photo="${t.photo}" class="btn-view-photo text-[10px] text-emerald-600 font-bold underline">Lihat Struk 📷</button>` : ''}
+                      </div>
+                      <button data-delete-id="${t.id}" class="btn-delete-trans text-stone-300 hover:text-red-500 p-1 text-sm font-bold">✕</button>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          `}
+        </div>
+      `;
+    }
+
+    // --- PAGE 2: PEMASUKAN ---
+    function renderPagePemasukan() {
+      const filtered = getFilteredTransactions().filter(t => t.type === 'income');
+      const totalIncome = filtered.reduce((acc, curr) => acc + (parseInt(curr.amount) || 0), 0);
+
+      return `
+        <!-- HERO CARD PEMASUKAN -->
+        <div class="bg-gradient-to-br from-[#1E7B5E] to-emerald-700 rounded-3xl p-5 text-white shadow-lg relative overflow-hidden">
+          <p class="text-xs font-bold uppercase tracking-wider text-emerald-100">TOTAL PEMASUKAN</p>
+          <h2 class="text-3xl font-extrabold mt-1">${formatRupiah(totalIncome)}</h2>
+          <div class="mt-3 flex items-center justify-between text-xs text-emerald-100 pt-3 border-t border-white/20">
+            <span>${filtered.length} Transaksi</span>
+            <span>Rata-rata: ${filtered.length > 0 ? formatRupiah(totalIncome / filtered.length) : 'Rp 0'}</span>
+          </div>
+        </div>
+
+        <!-- ACTION BUTTON -->
+        <button id="btnOpenIncomeModal" class="w-full py-3.5 bg-[#1E7B5E] hover:bg-emerald-700 text-white font-bold rounded-2xl shadow-md flex items-center justify-center space-x-2 active:scale-95 transition">
+          <span class="text-xl">+</span>
+          <span>Catat Pemasukan Baru</span>
+        </button>
+
+        <!-- TRANSACTION HISTORY LIST -->
+        <div class="space-y-2.5">
+          <h3 class="text-xs font-bold text-stone-400 uppercase tracking-wider px-1">Riwayat Pemasukan</h3>
+          ${filtered.length === 0 ? `
+            <div class="bg-white rounded-2xl p-8 text-center text-stone-400 text-sm border border-stone-200/60">
+              <span class="text-3xl block mb-2">💰</span>
+              Belum ada catatan pemasukan pada periode ini.
+            </div>
+          ` : `
+            <div class="space-y-2">
+              ${filtered.map(t => {
+                const member = appState.members.find(m => m.id === t.memberId) || { name: 'Saya', emoji: '👤' };
+                return `
+                  <div class="bg-white rounded-2xl p-3.5 shadow-sm border border-stone-200/70 flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                      <div class="w-10 h-10 rounded-xl bg-emerald-50 text-[#1E7B5E] flex items-center justify-center font-bold text-lg">
+                        💰
+                      </div>
+                      <div>
+                        <h4 class="font-bold text-stone-800 text-sm leading-tight">${t.note || t.category}</h4>
+                        <p class="text-[11px] text-stone-400 flex items-center space-x-2 mt-0.5">
+                          <span>${member.emoji} ${member.name}</span>
+                          <span>•</span>
+                          <span>${formatDateIndo(t.date)}</span>
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div class="text-right flex items-center space-x-2">
+                      <p class="font-extrabold text-[#1E7B5E] text-sm">+${formatRupiah(t.amount)}</p>
+                      <button data-delete-id="${t.id}" class="btn-delete-trans text-stone-300 hover:text-red-500 p-1 text-sm font-bold">✕</button>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          `}
+        </div>
+      `;
+    }
+
+    // --- PAGE 3: TABUNGAN / CELENGAN ---
+    function renderPageTabungan() {
+      const totalSavings = appState.savings.reduce((acc, curr) => acc + (parseInt(curr.current) || 0), 0);
+
+      return `
+        <!-- HERO CARD TABUNGAN -->
+        <div class="bg-gradient-to-br from-[#D98A2B] to-amber-600 rounded-3xl p-5 text-white shadow-lg relative overflow-hidden">
+          <p class="text-xs font-bold uppercase tracking-wider text-amber-100">TOTAL TABUNGAN & CELENGAN</p>
+          <h2 class="text-3xl font-extrabold mt-1">${formatRupiah(totalSavings)}</h2>
+          <p class="text-xs text-amber-100 mt-2">${appState.savings.length} Impian Celengan Terdaftar</p>
+        </div>
+
+        <button id="btnAddSavingsModal" class="w-full py-3.5 bg-[#D98A2B] hover:bg-amber-600 text-white font-bold rounded-2xl shadow-md flex items-center justify-center space-x-2 active:scale-95 transition">
+          <span class="text-xl">+</span>
+          <span>Buat Celengan Impian Baru</span>
+        </button>
+
+        <div class="space-y-3">
+          ${appState.savings.length === 0 ? `
+            <div class="bg-white rounded-2xl p-8 text-center text-stone-400 text-sm border border-stone-200/60">
+              <span class="text-3xl block mb-2">🐖</span>
+              Belum ada target tabungan. Mulai buat celengan pertama keluarga!
+            </div>
+          ` : appState.savings.map(s => {
+            const pct = Math.min(100, Math.round((s.current / s.target) * 100)) || 0;
+            return `
+              <div class="bg-white rounded-2xl p-4 shadow-sm border border-stone-200/80 space-y-3">
+                <div class="flex items-start justify-between">
+                  <div>
+                    <h4 class="font-bold text-stone-800 text-base">${s.title}</h4>
+                    <p class="text-xs text-stone-400">Target: ${formatRupiah(s.target)}</p>
+                  </div>
+                  <span class="text-xs font-extrabold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full">${pct}%</span>
+                </div>
+
+                <!-- Progress Bar -->
+                <div>
+                  <div class="flex justify-between text-xs font-bold text-stone-700 mb-1">
+                    <span>${formatRupiah(s.current)}</span>
+                    <span>${formatRupiah(s.target)}</span>
+                  </div>
+                  <div class="w-full bg-stone-100 rounded-full h-3">
+                    <div class="bg-[#D98A2B] h-3 rounded-full transition-all duration-500" style="width: ${pct}%"></div>
+                  </div>
+                </div>
+
+                <!-- Action Setor / Tarik -->
+                <div class="flex items-center space-x-2 pt-1">
+                  <button data-savings-id="${s.id}" data-action="setor" class="btn-action-savings flex-1 py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-xl shadow-sm">+ Setor</button>
+                  <button data-savings-id="${s.id}" data-action="tarik" class="btn-action-savings flex-1 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-xs rounded-xl">- Tarik</button>
+                  <button data-delete-savings="${s.id}" class="p-2 text-stone-300 hover:text-red-500 text-xs font-bold">🗑️</button>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    // --- PAGE 4: RINGKASAN KEUANGAN ---
+    function renderPageRingkasan() {
+      const filtered = getFilteredTransactions();
+      const totalIncome = filtered.filter(t => t.type === 'income').reduce((acc, curr) => acc + parseInt(curr.amount), 0);
+      const totalExpense = filtered.filter(t => t.type === 'expense').reduce((acc, curr) => acc + parseInt(curr.amount), 0);
+      const safeBalance = totalIncome - totalExpense;
+
+      return `
+        <!-- HERO SAFE BALANCE -->
+        <div class="bg-white rounded-3xl p-5 shadow-sm border border-stone-200/80 space-y-4">
+          <div class="text-center">
+            <p class="text-xs font-bold text-stone-400 uppercase tracking-wider">SISA SALDO SAFE (PERIODE AKTIF)</p>
+            <h2 class="text-3xl font-extrabold mt-1 ${safeBalance >= 0 ? 'text-[#1E7B5E]' : 'text-[#E05A47]'}">${formatRupiah(safeBalance)}</h2>
+          </div>
+
+          <!-- COMPARISON BAR -->
+          <div class="grid grid-cols-2 gap-3 pt-3 border-t border-stone-100">
+            <div class="bg-emerald-50/70 p-3 rounded-2xl border border-emerald-100">
+              <p class="text-[11px] font-bold text-emerald-700">Total Pemasukan</p>
+              <p class="text-lg font-extrabold text-[#1E7B5E] mt-0.5">+${formatRupiah(totalIncome)}</p>
+            </div>
+            <div class="bg-rose-50/70 p-3 rounded-2xl border border-rose-100">
+              <p class="text-[11px] font-bold text-rose-700">Total Pengeluaran</p>
+              <p class="text-lg font-extrabold text-[#E05A47] mt-0.5">-${formatRupiah(totalExpense)}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- HEALTH RATIO INDICATOR -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-stone-200/80 space-y-2">
+          <h4 class="text-xs font-bold text-stone-500 uppercase tracking-wider">Rasio Penggunaan Pemasukan</h4>
+          ${totalIncome > 0 ? `
+            <div class="w-full bg-stone-100 rounded-full h-3">
+              <div class="bg-[#E05A47] h-3 rounded-full" style="width: ${Math.min(100, Math.round((totalExpense / totalIncome) * 100))}%"></div>
+            </div>
+            <p class="text-xs text-stone-500">
+              Pengeluaran menggunakan <strong>${Math.round((totalExpense / totalIncome) * 100)}%</strong> dari total pemasukan.
+            </p>
+          ` : `
+            <p class="text-xs text-stone-400">Belum ada pemasukan terdaftar pada periode ini.</p>
+          `}
+        </div>
+      `;
+    }
+
+    // --- PAGE 5: DAFTAR BELANJA ---
+    function renderPageBelanja() {
+      return `
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-stone-200/80 space-y-3">
+          <h3 class="text-xs font-bold text-stone-500 uppercase tracking-wider">Tambah Checklist Belanjaan</h3>
+          <form id="formAddShopping" class="flex space-x-2">
+            <input type="text" id="inputShoppingItem" placeholder="Contoh: Beras 5kg, Minyak..." required class="flex-1 bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-600">
+            <button type="submit" class="bg-[#1E7B5E] text-white font-bold px-4 py-2 rounded-xl text-sm hover:bg-emerald-700 transition">+ Tambah</button>
+          </form>
+        </div>
+
+        <div class="space-y-2">
+          <h3 class="text-xs font-bold text-stone-400 uppercase tracking-wider px-1">Checklist Items</h3>
+          ${appState.shopping.length === 0 ? `
+            <div class="bg-white rounded-2xl p-8 text-center text-stone-400 text-sm border border-stone-200/60">
+              <span class="text-3xl block mb-2">🛒</span>
+              Daftar belanjaan kosong.
+            </div>
+          ` : appState.shopping.map(s => `
+            <div class="bg-white rounded-2xl p-3.5 shadow-sm border border-stone-200/70 flex items-center justify-between">
+              <label class="flex items-center space-x-3 cursor-pointer flex-1">
+                <input type="checkbox" data-shopping-id="${s.id}" ${s.done ? 'checked' : ''} class="chk-shopping w-5 h-5 accent-[#1E7B5E] rounded-md">
+                <span class="text-sm font-semibold ${s.done ? 'line-through text-stone-400' : 'text-stone-800'}">${s.text}</span>
+              </label>
+              ${s.price ? `<span class="text-xs font-extrabold text-[#E05A47] bg-rose-50 px-2 py-0.5 rounded-md">${formatRupiah(s.price)}</span>` : ''}
+              <button data-delete-shopping="${s.id}" class="text-stone-300 hover:text-red-500 text-sm ml-2 font-bold">✕</button>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    // --- PAGE 6: ANGGOTA & LINKED ID ---
+    function renderPageAnggota() {
+      const linkedID = localStorage.getItem(PERMANENT_KEYS.LINKED);
+      const currentPin = localStorage.getItem(PERMANENT_KEYS.PIN) || '1234';
+
+      return `
+        <!-- FAMILY MEMBERS SECTION -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-stone-200/80 space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xs font-bold text-stone-500 uppercase tracking-wider">Anggota Keluarga</h3>
+            <button id="btnOpenAddMember" class="text-xs font-bold text-[#1E7B5E] bg-emerald-50 px-2.5 py-1 rounded-lg hover:bg-emerald-100 transition">+ Tambah Anggota</button>
+          </div>
+          <div class="space-y-2">
+            ${appState.members.map(m => `
+              <div class="flex items-center justify-between p-2.5 bg-stone-50 rounded-xl border border-stone-100">
+                <div class="flex items-center space-x-3">
+                  <span class="text-2xl">${m.emoji}</span>
+                  <span class="font-bold text-stone-800 text-sm">${m.name}</span>
+                </div>
+                ${m.id !== 'saya' ? `<button data-delete-member="${m.id}" class="text-stone-300 hover:text-red-500 text-xs font-bold">Hapus</button>` : '<span class="text-[10px] text-stone-400 font-bold bg-stone-200 px-2 py-0.5 rounded-full">Utama</span>'}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <!-- DEVICE ID & PIN CARD -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-stone-200/80 space-y-3">
+          <h3 class="text-xs font-bold text-stone-500 uppercase tracking-wider">ID Perangkat Ini</h3>
+          <div class="flex items-center space-x-2">
+            <input type="text" readonly value="${walletId}" class="flex-1 bg-stone-100 border border-stone-200 rounded-xl px-3 py-2 text-sm font-mono font-bold text-stone-700">
+            <button id="btnCopyID" class="bg-stone-800 text-white font-bold px-3 py-2 rounded-xl text-xs hover:bg-stone-900 transition">Salin</button>
+          </div>
+
+          <div class="pt-2 border-t border-stone-100 flex items-center justify-between text-xs">
+            <span class="text-stone-500 font-medium">PIN Keamanan (4 Digit):</span>
+            <span class="font-bold text-stone-800 font-mono">${currentPin}</span>
+            <button id="btnChangePin" class="text-[#1E7B5E] font-bold underline">Ubah PIN</button>
+          </div>
+        </div>
+
+        <!-- LINKED WALLET BANNER OR FORM -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-stone-200/80 space-y-3">
+          <h3 class="text-xs font-bold text-stone-500 uppercase tracking-wider">Hubungkan ke Dompet Lain</h3>
+          ${linkedID ? `
+            <div class="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-xs space-y-2">
+              <p class="font-bold text-emerald-800">✅ Terhubung ke ID Dompet:</p>
+              <p class="font-mono font-bold text-emerald-900 text-sm">${linkedID}</p>
+              <button id="btnDisconnectLinked" class="w-full py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs shadow-sm">Putuskan Koneksi</button>
+            </div>
+          ` : `
+            <form id="formLinkWallet" class="space-y-3">
+              <input type="text" id="inputTargetID" placeholder="Masukkan ID Dompet (Contoh: DK-XXXXX)" required class="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-600 uppercase font-mono">
+              <div class="flex items-center space-x-4 text-xs font-semibold text-stone-600">
+                <label class="flex items-center space-x-1 cursor-pointer">
+                  <input type="radio" name="syncMode" value="2way" checked class="accent-[#1E7B5E]">
+                  <span>Mode Bareng (2-Arah)</span>
+                </label>
+                <label class="flex items-center space-x-1 cursor-pointer">
+                  <input type="radio" name="syncMode" value="readonly" class="accent-[#1E7B5E]">
+                  <span>Mode Pantau (Baca Saja)</span>
+                </label>
+              </div>
+              <button type="submit" class="w-full py-2.5 bg-[#1E7B5E] hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition">Hubungkan Dompet</button>
+            </form>
+          `}
+        </div>
+
+        <!-- COLLAPSIBLE RESTORE OLD DEVICE ID -->
+        <div class="bg-stone-100 rounded-2xl p-4 border border-stone-200/80 space-y-2">
+          <button id="btnToggleRestoreSection" class="w-full flex items-center justify-between text-xs font-bold text-stone-600 uppercase">
+            <span>🔄 Pulihkan ID Perangkat Lama</span>
+            <span>▼</span>
+          </button>
+          <div id="restoreSectionContent" class="hidden pt-2 space-y-2">
+            <p class="text-xs text-stone-500">Jika Anda pernah menggunakan aplikasi ini dan ingin kembali ke ID lama Anda (misal diambil dari Firebase Console), tempelkan di bawah ini:</p>
+            <div class="flex space-x-2">
+              <input type="text" id="inputOldRestoreID" placeholder="DK-XXXXXX" class="flex-1 bg-white border border-stone-300 rounded-xl px-3 py-2 text-sm uppercase font-mono">
+              <button id="btnApplyRestoreID" class="bg-stone-800 text-white font-bold px-3 py-2 rounded-xl text-xs">Pulihkan</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // ==========================================
+    // 11. EVENT BINDING ENGINE FOR DOM
+    // ==========================================
+    function bindPageEvents() {
+      // --- Expense Page Events ---
+      const btnOpenExpenseModal = document.getElementById('btnOpenExpenseModal');
+      if (btnOpenExpenseModal) btnOpenExpenseModal.addEventListener('click', promptExpenseModal);
+
+      // --- Income Page Events ---
+      const btnOpenIncomeModal = document.getElementById('btnOpenIncomeModal');
+      if (btnOpenIncomeModal) btnOpenIncomeModal.addEventListener('click', promptIncomeModal);
+
+      // --- Savings Page Events ---
+      const btnAddSavingsModal = document.getElementById('btnAddSavingsModal');
+      if (btnAddSavingsModal) btnAddSavingsModal.addEventListener('click', promptAddSavingsModal);
+
+      document.querySelectorAll('.btn-action-savings').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.getAttribute('data-savings-id');
+          const action = btn.getAttribute('data-action');
+          promptSavingsAction(id, action);
+        });
+      });
+
+      document.querySelectorAll('[data-delete-savings]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.getAttribute('data-delete-savings');
+          promptConfirmModal("Hapus Celengan", "Apakah Anda yakin ingin menghapus celengan ini?", () => {
+            appState.savings = appState.savings.filter(s => s.id !== id);
+            pushToCloud();
+            renderApp();
+            showToast("Celengan dihapus", "info");
+          });
+        });
+      });
+
+      // --- Shopping Page Events ---
+      const formAddShopping = document.getElementById('formAddShopping');
+      if (formAddShopping) {
+        formAddShopping.addEventListener('submit', (e) => {
+          e.preventDefault();
+          const txt = document.getElementById('inputShoppingItem').value.trim();
+          if (txt) {
+            appState.shopping.push({
+              id: 'shop_' + Date.now(),
+              text: txt,
+              done: false,
+              price: 0,
+              date: getLocalTodayStr()
+            });
+            pushToCloud();
+            renderApp();
+            showToast("Item ditambahkan ke daftar belanja", "success");
+          }
+        });
+      }
+
+      document.querySelectorAll('.chk-shopping').forEach(chk => {
+        chk.addEventListener('change', (e) => {
+          const id = chk.getAttribute('data-shopping-id');
+          const item = appState.shopping.find(s => s.id === id);
+          if (item) {
+            item.done = chk.checked;
+            if (item.done) {
+              // Open modal asking for price to convert into Expense transaction
+              promptShoppingPriceModal(item);
+            } else {
+              pushToCloud();
+              renderApp();
+            }
+          }
+        });
+      });
+
+      document.querySelectorAll('[data-delete-shopping]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.getAttribute('data-delete-shopping');
+          appState.shopping = appState.shopping.filter(s => s.id !== id);
+          pushToCloud();
+          renderApp();
+        });
+      });
+
+      // --- Member & Settings Events ---
+      const btnOpenAddMember = document.getElementById('btnOpenAddMember');
+      if (btnOpenAddMember) btnOpenAddMember.addEventListener('click', promptAddMemberModal);
+
+      document.querySelectorAll('[data-delete-member]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.getAttribute('data-delete-member');
+          promptConfirmModal("Hapus Anggota", "Yakin ingin menghapus anggota ini?", () => {
+            appState.members = appState.members.filter(m => m.id !== id);
+            pushToCloud();
+            renderApp();
+            showToast("Anggota dihapus", "info");
+          });
+        });
+      });
+
+      const btnCopyID = document.getElementById('btnCopyID');
+      if (btnCopyID) {
+        btnCopyID.addEventListener('click', () => {
+          const copyText = walletId;
+          const dummy = document.createElement("textarea");
+          document.body.appendChild(dummy);
+          dummy.value = copyText;
+          dummy.select();
+          document.execCommand("copy");
+          document.body.removeChild(dummy);
+          showToast("ID Perangkat telah disalin!", "success");
+        });
+      }
+
+      const btnChangePin = document.getElementById('btnChangePin');
+      if (btnChangePin) {
+        btnChangePin.addEventListener('click', promptChangePinModal);
+      }
+
+      const formLinkWallet = document.getElementById('formLinkWallet');
+      if (formLinkWallet) {
+        formLinkWallet.addEventListener('submit', (e) => {
+          e.preventDefault();
+          const targetID = document.getElementById('inputTargetID').value.trim().toUpperCase();
+          if (targetID) {
+            localStorage.setItem(PERMANENT_KEYS.LINKED, targetID);
+            showToast(`Dompet berhasil dihubungkan ke ${targetID}`, 'success');
+            setTimeout(() => window.location.reload(), 800);
+          }
+        });
+      }
+
+      const btnDisconnectLinked = document.getElementById('btnDisconnectLinked');
+      if (btnDisconnectLinked) {
+        btnDisconnectLinked.addEventListener('click', () => {
+          promptConfirmModal("Putuskan Koneksi", "Kembali ke dompet lokal sendiri?", () => {
+            localStorage.removeItem(PERMANENT_KEYS.LINKED);
+            showToast("Koneksi diputuskan", "info");
+            setTimeout(() => window.location.reload(), 800);
+          });
+        });
+      }
+
+      const btnToggleRestoreSection = document.getElementById('btnToggleRestoreSection');
+      if (btnToggleRestoreSection) {
+        btnToggleRestoreSection.addEventListener('click', () => {
+          const content = document.getElementById('restoreSectionContent');
+          content.classList.toggle('hidden');
+        });
+      }
+
+      const btnApplyRestoreID = document.getElementById('btnApplyRestoreID');
+      if (btnApplyRestoreID) {
+        btnApplyRestoreID.addEventListener('click', () => {
+          const restoreID = document.getElementById('inputOldRestoreID').value.trim().toUpperCase();
+          if (restoreID && restoreID.startsWith('DK-')) {
+            localStorage.setItem(PERMANENT_KEYS.DEVICE_ID, restoreID);
+            localStorage.removeItem(PERMANENT_KEYS.LINKED);
+            showToast(`ID Perangkat berhasil dipulihkan ke ${restoreID}`, 'success');
+            setTimeout(() => window.location.reload(), 800);
+          } else {
+            showToast("Format ID harus diawali DK-", "error");
+          }
+        });
+      }
+
+      // --- Transaction Item Events (Delete & Photo) ---
+      document.querySelectorAll('[data-delete-id]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.getAttribute('data-delete-id');
+          promptConfirmModal("Hapus Catatan", "Apakah Anda yakin ingin menghapus transaksi ini?", () => {
+            appState.transactions = appState.transactions.filter(t => t.id !== id);
+            pushToCloud();
+            renderApp();
+            showToast("Catatan transaksi dihapus", "info");
+          });
+        });
+      });
+
+      document.querySelectorAll('.btn-view-photo').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const src = btn.getAttribute('data-photo');
+          document.getElementById('photoViewerImg').src = src;
+          document.getElementById('photoViewerModal').classList.remove('hidden');
+        });
+      });
+    }
+
+    // ==========================================
+    // 12. MODAL SYSTEM IMPLEMENTATION
+    // ==========================================
+    const modalOverlay = document.getElementById('modalOverlay');
+    const modalContent = document.getElementById('modalContent');
+
+    function openModal(htmlContent) {
+      modalContent.innerHTML = htmlContent;
+      modalOverlay.classList.remove('hidden');
+    }
+
+    function closeModal() {
+      modalOverlay.classList.add('hidden');
+      modalContent.innerHTML = '';
+    }
+
+    modalOverlay.addEventListener('click', (e) => {
+      if (e.target === modalOverlay) closeModal();
+    });
+
+    function promptConfirmModal(title, text, onConfirm) {
+      openModal(`
+        <div class="text-center space-y-3">
+          <span class="text-3xl block">⚠️</span>
+          <h3 class="font-bold text-stone-800 text-base">${title}</h3>
+          <p class="text-xs text-stone-500">${text}</p>
+          <div class="flex space-x-2 pt-2">
+            <button id="btnModalCancel" class="flex-1 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-xs rounded-xl">Batal</button>
+            <button id="btnModalConfirm" class="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow-sm">Ya, Lanjutkan</button>
+          </div>
+        </div>
+      `);
+      document.getElementById('btnModalCancel').addEventListener('click', closeModal);
+      document.getElementById('btnModalConfirm').addEventListener('click', () => {
+        closeModal();
+        onConfirm();
+      });
+    }
+
+    // Modal Catat Pengeluaran
+    function promptExpenseModal() {
+      openModal(`
+        <div class="space-y-3">
+          <div class="flex items-center justify-between border-b pb-2">
+            <h3 class="font-bold text-stone-800 text-sm">💸 Catat Pengeluaran Baru</h3>
+            <button onclick="closeModal()" class="text-stone-400 font-bold">✕</button>
+          </div>
+          <form id="formExpenseModal" class="space-y-3">
+            <div>
+              <label class="text-[11px] font-bold text-stone-500 uppercase">Nominal (Rp)</label>
+              <input type="number" id="inputAmt" placeholder="0" inputmode="numeric" required class="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-base font-bold text-[#E05A47]">
+            </div>
+
+            <div>
+              <label class="text-[11px] font-bold text-stone-500 uppercase">Kategori</label>
+              <select id="inputCat" class="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-sm font-semibold text-stone-700">
+                <option value="🍔 Makanan & Minuman">🍔 Makanan & Minuman</option>
+                <option value="🛒 Belanja Dapur">🛒 Belanja Dapur</option>
+                <option value="⚡ Listrik & Air">⚡ Listrik & Air</option>
+                <option value="⛽ Bensin & Transport">⛽ Bensin & Transport</option>
+                <option value="💊 Kesehatan">💊 Kesehatan</option>
+                <option value="🏫 Sekolah & Anak">🏫 Sekolah & Anak</option>
+                <option value="🎉 Hiburan">🎉 Hiburan</option>
+                <option value="📦 Lain-lain">📦 Lain-lain</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="text-[11px] font-bold text-stone-500 uppercase">Oleh Anggota</label>
+              <select id="inputMember" class="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-sm font-semibold text-stone-700">
+                ${appState.members.map(m => `<option value="${m.id}">${m.emoji} ${m.name}</option>`).join('')}
+              </select>
+            </div>
+
+            <div>
+              <label class="text-[11px] font-bold text-stone-500 uppercase">Tanggal</label>
+              <input type="date" id="inputDate" value="${currentAppTodayDate}" class="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-sm font-semibold text-stone-700">
+            </div>
+
+            <div>
+              <label class="text-[11px] font-bold text-stone-500 uppercase">Catatan / Keterangan</label>
+              <input type="text" id="inputNote" placeholder="Contoh: Beli minyak di warung" class="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-sm">
+            </div>
+
+            <div>
+              <label class="text-[11px] font-bold text-stone-500 uppercase">Foto Struk (Opsional)</label>
+              <input type="file" id="inputPhoto" accept="image/*" class="w-full text-xs text-stone-500">
+            </div>
+
+            <button type="submit" class="w-full py-3 bg-[#E05A47] hover:bg-rose-600 text-white font-bold rounded-xl text-sm shadow-md transition">Simpan Pengeluaran</button>
+          </form>
+        </div>
+      `);
+
+      document.getElementById('formExpenseModal').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const amt = document.getElementById('inputAmt').value;
+        const cat = document.getElementById('inputCat').value;
+        const mem = document.getElementById('inputMember').value;
+        const dt = document.getElementById('inputDate').value || currentAppTodayDate;
+        const note = document.getElementById('inputNote').value;
+        const photoFile = document.getElementById('inputPhoto').files[0];
+
+        compressPhotoFile(photoFile, (compressedBase64) => {
+          appState.transactions.unshift({
+            id: 'trans_' + Date.now(),
+            type: 'expense',
+            amount: parseInt(amt),
+            category: cat,
+            memberId: mem,
+            date: dt,
+            note: note,
+            photo: compressedBase64 || null
+          });
+
+          pushToCloud();
+          closeModal();
+          renderApp();
+          showToast("Pengeluaran berhasil dicatat!", "success");
+        });
+      });
+    }
+
+    // Modal Catat Pemasukan
+    function promptIncomeModal() {
+      openModal(`
+        <div class="space-y-3">
+          <div class="flex items-center justify-between border-b pb-2">
+            <h3 class="font-bold text-stone-800 text-sm">💰 Catat Pemasukan Baru</h3>
+            <button onclick="closeModal()" class="text-stone-400 font-bold">✕</button>
+          </div>
+          <form id="formIncomeModal" class="space-y-3">
+            <div>
+              <label class="text-[11px] font-bold text-stone-500 uppercase">Nominal (Rp)</label>
+              <input type="number" id="inputAmt" placeholder="0" inputmode="numeric" required class="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-base font-bold text-[#1E7B5E]">
+            </div>
+
+            <div>
+              <label class="text-[11px] font-bold text-stone-500 uppercase">Sumber Pemasukan</label>
+              <select id="inputCat" class="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-sm font-semibold text-stone-700">
+                <option value="💼 Gaji Utama">💼 Gaji Utama</option>
+                <option value="🛍️ Hasil Usaha / Dagang">🛍️ Hasil Usaha / Dagang</option>
+                <option value="🎁 Hadiah & Bonus">🎁 Hadiah & Bonus</option>
+                <option value="📈 Investasi / Tabungan">📈 Investasi / Tabungan</option>
+                <option value="📦 Lain-lain">📦 Lain-lain</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="text-[11px] font-bold text-stone-500 uppercase">Penerima (Anggota)</label>
+              <select id="inputMember" class="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-sm font-semibold text-stone-700">
+                ${appState.members.map(m => `<option value="${m.id}">${m.emoji} ${m.name}</option>`).join('')}
+              </select>
+            </div>
+
+            <div>
+              <label class="text-[11px] font-bold text-stone-500 uppercase">Tanggal</label>
+              <input type="date" id="inputDate" value="${currentAppTodayDate}" class="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-sm font-semibold text-stone-700">
+            </div>
+
+            <div>
+              <label class="text-[11px] font-bold text-stone-500 uppercase">Catatan / Keterangan</label>
+              <input type="text" id="inputNote" placeholder="Contoh: Gaji bulan ini" class="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-sm">
+            </div>
+
+            <button type="submit" class="w-full py-3 bg-[#1E7B5E] hover:bg-emerald-700 text-white font-bold rounded-xl text-sm shadow-md transition">Simpan Pemasukan</button>
+          </form>
+        </div>
+      `);
+
+      document.getElementById('formIncomeModal').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const amt = document.getElementById('inputAmt').value;
+        const cat = document.getElementById('inputCat').value;
+        const mem = document.getElementById('inputMember').value;
+        const dt = document.getElementById('inputDate').value || currentAppTodayDate;
+        const note = document.getElementById('inputNote').value;
+
+        appState.transactions.unshift({
+          id: 'trans_' + Date.now(),
+          type: 'income',
+          amount: parseInt(amt),
+          category: cat,
+          memberId: mem,
+          date: dt,
+          note: note,
+          photo: null
+        });
+
+        pushToCloud();
+        closeModal();
+        renderApp();
+        showToast("Pemasukan berhasil dicatat!", "success");
+      });
+    }
+
+    // Modal Add Savings
+    function promptAddSavingsModal() {
+      openModal(`
+        <div class="space-y-3">
+          <div class="flex items-center justify-between border-b pb-2">
+            <h3 class="font-bold text-stone-800 text-sm">🐖 Buat Celengan Impian</h3>
+            <button onclick="closeModal()" class="text-stone-400 font-bold">✕</button>
+          </div>
+          <form id="formSavingsModal" class="space-y-3">
+            <div>
+              <label class="text-[11px] font-bold text-stone-500 uppercase">Nama Impian</label>
+              <input type="text" id="inputSavingsTitle" placeholder="Contoh: Beli Kulkas Baru" required class="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-sm">
+            </div>
+            <div>
+              <label class="text-[11px] font-bold text-stone-500 uppercase">Target Nominal (Rp)</label>
+              <input type="number" id="inputSavingsTarget" placeholder="0" inputmode="numeric" required class="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-sm font-bold text-amber-600">
+            </div>
+            <button type="submit" class="w-full py-3 bg-[#D98A2B] hover:bg-amber-600 text-white font-bold rounded-xl text-sm shadow-md transition">Simpan Celengan</button>
+          </form>
+        </div>
+      `);
+
+      document.getElementById('formSavingsModal').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const title = document.getElementById('inputSavingsTitle').value.trim();
+        const target = parseInt(document.getElementById('inputSavingsTarget').value) || 0;
+
+        if (title && target > 0) {
+          appState.savings.push({
+            id: 'sav_' + Date.now(),
+            title: title,
+            target: target,
+            current: 0,
+            history: []
+          });
+          pushToCloud();
+          closeModal();
+          renderApp();
+          showToast("Celengan baru dibuat!", "success");
+        }
+      });
+    }
+
+    function promptSavingsAction(savingsId, action) {
+      const item = appState.savings.find(s => s.id === savingsId);
+      if (!item) return;
+
+      openModal(`
+        <div class="space-y-3">
+          <div class="flex items-center justify-between border-b pb-2">
+            <h3 class="font-bold text-stone-800 text-sm">${action === 'setor' ? '➕ Setor Tabungan' : '➖ Tarik Tabungan'}</h3>
+            <button onclick="closeModal()" class="text-stone-400 font-bold">✕</button>
+          </div>
+          <p class="text-xs text-stone-500">Impian: <strong>${item.title}</strong></p>
+          <form id="formSavingsAction" class="space-y-3">
+            <div>
+              <label class="text-[11px] font-bold text-stone-500 uppercase">Jumlah Nominal (Rp)</label>
+              <input type="number" id="inputActionAmt" placeholder="0" inputmode="numeric" required class="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-base font-bold text-amber-600">
+            </div>
+            <button type="submit" class="w-full py-3 bg-[#D98A2B] hover:bg-amber-600 text-white font-bold rounded-xl text-sm shadow-md transition">Proses ${action === 'setor' ? 'Setor' : 'Tarik'}</button>
+          </form>
+        </div>
+      `);
+
+      document.getElementById('formSavingsAction').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const amt = parseInt(document.getElementById('inputActionAmt').value) || 0;
+        if (amt > 0) {
+          if (action === 'setor') {
+            item.current += amt;
+          } else {
+            item.current = Math.max(0, item.current - amt);
+          }
+          item.history.push({ date: getLocalTodayStr(), amount: amt, type: action });
+          pushToCloud();
+          closeModal();
+          renderApp();
+          showToast(`Tabungan berhasil di-${action}!`, 'success');
+        }
+      });
+    }
+
+    function promptShoppingPriceModal(item) {
+      openModal(`
+        <div class="space-y-3">
+          <h3 class="font-bold text-stone-800 text-sm">🛒 Item Belanjaan Dibeli!</h3>
+          <p class="text-xs text-stone-500">Berapa harga yang Anda bayar untuk <strong>${item.text}</strong>?</p>
+          <form id="formShoppingPrice" class="space-y-3">
+            <div>
+              <label class="text-[11px] font-bold text-stone-500 uppercase">Harga Total (Rp)</label>
+              <input type="number" id="inputShopPrice" placeholder="0" inputmode="numeric" required class="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-base font-bold text-[#E05A47]">
+            </div>
+            <div>
+              <label class="text-[11px] font-bold text-stone-500 uppercase">Oleh Anggota</label>
+              <select id="inputShopMember" class="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-sm">
+                ${appState.members.map(m => `<option value="${m.id}">${m.emoji} ${m.name}</option>`).join('')}
+              </select>
+            </div>
+            <div class="flex space-x-2 pt-2">
+              <button type="button" id="btnSkipPrice" class="flex-1 py-2.5 bg-stone-100 text-stone-600 font-bold text-xs rounded-xl">Hanya Centang</button>
+              <button type="submit" class="flex-1 py-2.5 bg-[#E05A47] text-white font-bold text-xs rounded-xl shadow-md">+ Catat Pengeluaran</button>
+            </div>
+          </form>
+        </div>
+      `);
+
+      document.getElementById('btnSkipPrice').addEventListener('click', () => {
+        pushToCloud();
+        closeModal();
+        renderApp();
+      });
+
+      document.getElementById('formShoppingPrice').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const price = parseInt(document.getElementById('inputShopPrice').value) || 0;
+        const mem = document.getElementById('inputShopMember').value;
+        item.price = price;
+
+        if (price > 0) {
+          appState.transactions.unshift({
+            id: 'trans_' + Date.now(),
+            type: 'expense',
+            amount: price,
+            category: '🛒 Belanja Dapur',
+            memberId: mem,
+            date: getLocalTodayStr(),
+            note: `Belanja: ${item.text}`,
+            photo: null
+          });
+        }
+
+        pushToCloud();
+        closeModal();
+        renderApp();
+        showToast("Otomatis masuk ke Pengeluaran hari ini!", "success");
+      });
+    }
+
+    function promptAddMemberModal() {
+      openModal(`
+        <div class="space-y-3">
+          <div class="flex items-center justify-between border-b pb-2">
+            <h3 class="font-bold text-stone-800 text-sm">👨‍👩‍👧‍👦 Tambah Anggota Keluarga</h3>
+            <button onclick="closeModal()" class="text-stone-400 font-bold">✕</button>
+          </div>
+          <form id="formAddMemberModal" class="space-y-3">
+            <div>
+              <label class="text-[11px] font-bold text-stone-500 uppercase">Nama Anggota</label>
+              <input type="text" id="inputMemName" placeholder="Contoh: Ibu, Ayah, Adik" required class="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-sm">
+            </div>
+            <div>
+              <label class="text-[11px] font-bold text-stone-500 uppercase">Pilih Ikon / Emoji</label>
+              <select id="inputMemEmoji" class="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-lg">
+                <option value="👩">👩 Ibu</option>
+                <option value="👨">👨 Ayah</option>
+                <option value="👧">👧 Anak Perempuan</option>
+                <option value="👦">👦 Anak Laki-Laki</option>
+                <option value="👵">👵 Nenek</option>
+                <option value="👴">👴 Kakek</option>
+              </select>
+            </div>
+            <button type="submit" class="w-full py-3 bg-[#1E7B5E] hover:bg-emerald-700 text-white font-bold rounded-xl text-sm shadow-md transition">Tambah Anggota</button>
+          </form>
+        </div>
+      `);
+
+      document.getElementById('formAddMemberModal').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const name = document.getElementById('inputMemName').value.trim();
+        const emoji = document.getElementById('inputMemEmoji').value;
+
+        if (name) {
+          appState.members.push({
+            id: 'mem_' + Date.now(),
+            name: name,
+            emoji: emoji
+          });
+          pushToCloud();
+          closeModal();
+          renderApp();
+          showToast("Anggota baru ditambahkan!", "success");
+        }
+      });
+    }
+
+    function promptChangePinModal() {
+      openModal(`
+        <div class="space-y-3">
+          <h3 class="font-bold text-stone-800 text-sm">🔒 Ubah PIN Keamanan</h3>
+          <form id="formChangePinModal" class="space-y-3">
+            <div>
+              <label class="text-[11px] font-bold text-stone-500 uppercase">PIN Baru (4 Digit angka)</label>
+              <input type="password" maxlength="4" id="inputPinNew" pattern="[0-9]{4}" inputmode="numeric" required class="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-base font-bold text-center tracking-widest">
+            </div>
+            <button type="submit" class="w-full py-2.5 bg-stone-800 hover:bg-stone-900 text-white font-bold rounded-xl text-xs transition">Simpan PIN Baru</button>
+          </form>
+        </div>
+      `);
+
+      document.getElementById('formChangePinModal').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const pin = document.getElementById('inputPinNew').value;
+        if (pin && pin.length === 4) {
+          localStorage.setItem(PERMANENT_KEYS.PIN, pin);
+          closeModal();
+          renderApp();
+          showToast("PIN Keamanan berhasil diubah!", "success");
+        }
+      });
+    }
+
+    // ==========================================
+    // 13. DRAWER MENU & GLOBAL LISTENERS
+    // ==========================================
+    const drawerOverlay = document.getElementById('drawerOverlay');
+    const drawerMenu = document.getElementById('drawerMenu');
+
+    function openDrawer() {
+      drawerOverlay.classList.remove('hidden');
+      drawerMenu.classList.remove('translate-x-full');
+    }
+
+    function closeDrawer() {
+      drawerMenu.classList.add('translate-x-full');
+      setTimeout(() => drawerOverlay.classList.add('hidden'), 300);
+    }
+
+    document.getElementById('btnOpenMenu').addEventListener('click', openDrawer);
+    document.getElementById('btnCloseDrawer').addEventListener('click', closeDrawer);
+    drawerOverlay.addEventListener('click', closeDrawer);
+
+    // Nav Item Click inside Drawer
+    document.querySelectorAll('.nav-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const page = item.getAttribute('data-page');
+        appState.activePage = page;
+        closeDrawer();
+        renderApp();
+      });
+    });
+
+    // Calendar Toggle Header Click
+    document.getElementById('btnToggleCalendar').addEventListener('click', (e) => {
+      if (e.target.closest('#btnQuickToday')) return;
+      const card = document.getElementById('calendarCard');
+      const arrow = document.getElementById('calendarArrow');
+      card.classList.toggle('hidden');
+      arrow.classList.toggle('rotate-180');
+    });
+
+    document.getElementById('btnQuickToday').addEventListener('click', (e) => {
+      e.stopPropagation();
+      appState.filterMode = 'today';
+      appState.selectedStartDate = currentAppTodayDate;
+      appState.selectedEndDate = currentAppTodayDate;
+      appState.calendarMonth = new Date().getMonth();
+      appState.calendarYear = new Date().getFullYear();
+      renderApp();
+    });
+
+    // Range Quick Select Buttons in Calendar Header
+    document.querySelectorAll('.btn-range').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const rangeType = btn.getAttribute('data-range');
+        appState.filterMode = rangeType;
+
+        const now = new Date();
+        const todayStr = getLocalTodayStr();
+
+        if (rangeType === 'today') {
+          appState.selectedStartDate = todayStr;
+          appState.selectedEndDate = todayStr;
+        } else if (rangeType === '7d') {
+          const past = new Date();
+          past.setDate(now.getDate() - 6);
+          const yyyy = past.getFullYear();
+          const mm = String(past.getMonth() + 1).padStart(2, '0');
+          const dd = String(past.getDate()).padStart(2, '0');
+          appState.selectedStartDate = `${yyyy}-${mm}-${dd}`;
+          appState.selectedEndDate = todayStr;
+        } else if (rangeType === '1m') {
+          const past = new Date();
+          past.setMonth(now.getMonth() - 1);
+          const yyyy = past.getFullYear();
+          const mm = String(past.getMonth() + 1).padStart(2, '0');
+          const dd = String(past.getDate()).padStart(2, '0');
+          appState.selectedStartDate = `${yyyy}-${mm}-${dd}`;
+          appState.selectedEndDate = todayStr;
+        } else if (rangeType === '3m') {
+          const past = new Date();
+          past.setMonth(now.getMonth() - 3);
+          const yyyy = past.getFullYear();
+          const mm = String(past.getMonth() + 1).padStart(2, '0');
+          const dd = String(past.getDate()).padStart(2, '0');
+          appState.selectedStartDate = `${yyyy}-${mm}-${dd}`;
+          appState.selectedEndDate = todayStr;
+        } else if (rangeType === '6m') {
+          const past = new Date();
+          past.setMonth(now.getMonth() - 6);
+          const yyyy = past.getFullYear();
+          const mm = String(past.getMonth() + 1).padStart(2, '0');
+          const dd = String(past.getDate()).padStart(2, '0');
+          appState.selectedStartDate = `${yyyy}-${mm}-${dd}`;
+          appState.selectedEndDate = todayStr;
+        } else if (rangeType === '1y') {
+          const past = new Date();
+          past.setFullYear(now.getFullYear() - 1);
+          const yyyy = past.getFullYear();
+          const mm = String(past.getMonth() + 1).padStart(2, '0');
+          const dd = String(past.getDate()).padStart(2, '0');
+          appState.selectedStartDate = `${yyyy}-${mm}-${dd}`;
+          appState.selectedEndDate = todayStr;
+        }
+
+        renderApp();
+      });
+    });
+
+    document.getElementById('btnPrevMonth').addEventListener('click', () => {
+      if (appState.calendarMonth === 0) {
+        appState.calendarMonth = 11;
+        appState.calendarYear -= 1;
+      } else {
+        appState.calendarMonth -= 1;
+      }
+      renderApp();
+    });
+
+    document.getElementById('btnNextMonth').addEventListener('click', () => {
+      if (appState.calendarMonth === 11) {
+        appState.calendarMonth = 0;
+        appState.calendarYear += 1;
+      } else {
+        appState.calendarMonth += 1;
+      }
+      renderApp();
+    });
+
+    // Close Photo Viewer
+    document.getElementById('btnClosePhotoViewer').addEventListener('click', () => {
+      document.getElementById('photoViewerModal').classList.add('hidden');
+    });
+
+    // Backup JSON Export & Import
+    document.getElementById('btnExportJSON').addEventListener('click', () => {
+      const backupData = {
+        walletId: walletId,
+        exportDate: new Date().toISOString(),
+        transactions: appState.transactions,
+        members: appState.members,
+        savings: appState.savings,
+        shopping: appState.shopping
+      };
+
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `DompetKeluarga_Backup_${getLocalTodayStr()}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      showToast("File backup berhasil diunduh!", "success");
+    });
+
+    document.getElementById('btnImportJSON').addEventListener('click', () => {
+      document.getElementById('fileImportInput').click();
+    });
+
+    document.getElementById('fileImportInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const imported = JSON.parse(event.target.result);
+          if (imported.transactions && imported.members) {
+            appState.transactions = imported.transactions;
+            appState.members = imported.members;
+            if (imported.savings) appState.savings = imported.savings;
+            if (imported.shopping) appState.shopping = imported.shopping;
+            pushToCloud();
+            closeDrawer();
+            renderApp();
+            showToast("Backup data berhasil dipulihkan!", "success");
+          } else {
+            showToast("Format file JSON tidak valid", "error");
+          }
+        } catch(err) {
+          showToast("Gagal membaca file JSON", "error");
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    // Reset Wallet Button
+    document.getElementById('btnResetWallet').addEventListener('click', () => {
+      promptConfirmModal("RESET DATA DOMPET", "Tindakan ini akan menghapus SELURUH data pengeluaran, pemasukan, dan tabungan pada dompet ini secara permanen. Lanjutkan?", () => {
+        appState.transactions = [];
+        appState.savings = [];
+        appState.shopping = [];
+        appState.members = [{ id: 'saya', name: 'Saya', emoji: '👤' }];
+        pushToCloud();
+        closeDrawer();
+        renderApp();
+        showToast("Data dompet telah direset murni!", "info");
+      });
+    });
+
+    // ==========================================
+    // 14. APPLICATION INITIAL LAUNCH
+    // ==========================================
+    window.addEventListener('load', () => {
+      initFirebaseCloudSync();
+      renderApp();
+    });
   </script>
 </body>
-  </html>
+</html>
